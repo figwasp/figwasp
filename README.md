@@ -217,14 +217,6 @@ to the following, essentially mimicking the behaviour of `kubectl`.
     }
 ```
 
-Testing
-=======
-
-Mock Kubernetes Cluster
------------------------
-
-`kind`
-
 Usage
 -----
 
@@ -232,6 +224,14 @@ The user would need to create a Role or ClusterRole with permissions to
 `get` and `patch` deployments. The role would be bound to a service
 account, and the `psychocomp` sidecar would be authenticated as that
 service account.
+
+Testing
+=======
+
+Mock Kubernetes Cluster
+-----------------------
+
+`kind`
 
 [^1]: Or any other tag, for that matter.
 
