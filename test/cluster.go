@@ -17,7 +17,8 @@ type kindCluster struct {
 }
 
 func NewKindCluster(name, kubeConfigPath string) (c *kindCluster, e error) {
-	// Initialise a local Kubernetes cluster using Docker containers as nodes.
+	// Initialise a local Kubernetes cluster using Docker containers as nodes,
+	// overriding any existing cluster with the same name.
 
 	var (
 		logger log.Logger
