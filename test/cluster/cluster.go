@@ -1,4 +1,4 @@
-package test
+package cluster
 
 import (
 	"sigs.k8s.io/kind/pkg/cluster"
