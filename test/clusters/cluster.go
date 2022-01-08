@@ -1,4 +1,4 @@
-package cluster
+package clusters
 
 import (
 	"sigs.k8s.io/kind/pkg/cluster"
