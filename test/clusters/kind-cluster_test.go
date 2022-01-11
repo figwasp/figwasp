@@ -4,14 +4,14 @@ import (
 	"testing"
 )
 
-func TestCluster(t *testing.T) {
+func TestKindCluster(t *testing.T) {
 	const (
 		clusterName    = "test-cluster"
 		kubeConfigPath = ""
 	)
 
 	var (
-		cluster Cluster
+		cluster *kindCluster
 		e       error
 	)
 

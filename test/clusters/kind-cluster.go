@@ -6,10 +6,6 @@ import (
 	"sigs.k8s.io/kind/pkg/log"
 )
 
-type Cluster interface {
-	Destroy() error
-}
-
 type kindCluster struct {
 	provider       *cluster.Provider
 	name           string
