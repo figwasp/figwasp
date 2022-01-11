@@ -9,24 +9,12 @@ import (
 	"github.com/docker/docker/pkg/archive"
 )
 
-type Image interface {
-	SetTag(string)
-	ClearTags()
-	SetBuildArg(string, string)
-	ClearBuildArgs()
-}
-
 type dockerImage struct {
 	buildContext io.ReadCloser
 	buildOptions types.ImageBuildOptions
 }
 
 func NewDockerImage(buildContextPath string) (i *dockerImage, e error) {
-	var (
-		buildArgKey   string
-		buildArgValue string
-	)
-
 	i = new(dockerImage)
 
 	i.buildContext, e = archive.TarWithOptions(buildContextPath,
@@ -66,9 +54,7 @@ func (i *dockerImage) ClearBuildArgs() {
 	return
 }
 
-func BuildImageWithDocker(
-    dockerClient client.Client, image Image, output io.Writer,
-) (
+func (i *dockerImage) Build(dockerClient *client.Client, output io.Writer) (
 	e error,
 ) {
 	var (
@@ -77,8 +63,8 @@ func BuildImageWithDocker(
 
 	buildResponse, e = dockerClient.ImageBuild(
 		context.Background(),
-		image.buildContext,
-		image.buildOptions,
+		i.buildContext,
+		i.buildOptions,
 	)
 	if e != nil {
 		return

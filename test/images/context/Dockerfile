@@ -16,10 +16,10 @@ ARG APP_PORT=":8000"
 
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -o /usr/bin/$APP_NAME \
-    -ldflags "\
-        -X main.message=$APP_MESSAGE \
-        -X main.path=$APP_PATH \
-        -X main.port=$APP_PORT \
+    -ldflags " \
+        -X 'main.message=$APP_MESSAGE' \
+        -X 'main.path=$APP_PATH' \
+        -X 'main.port=$APP_PORT' \
     "
 
 
