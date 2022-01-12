@@ -12,21 +12,24 @@ type kindCluster struct {
 	kubeConfigPath string
 }
 
-func NewKindCluster(name, kubeConfigPath string) (c *kindCluster, e error) {
+func NewKindCluster(nodeImage, name, kubeConfigPath string) (
+	c *kindCluster, e error,
+) {
 	// Initialise a local Kubernetes cluster using Docker containers as nodes,
 	// overriding any existing cluster with the same name.
 
 	var (
-		logger log.Logger
-		option cluster.ProviderOption
+		createOption   cluster.CreateOption
+		logger         log.Logger
+		providerOption cluster.ProviderOption
 	)
 
 	logger = cmd.NewLogger()
 
-	option = cluster.ProviderWithLogger(logger)
+	providerOption = cluster.ProviderWithLogger(logger)
 
 	c = &kindCluster{
-		provider:       cluster.NewProvider(option),
+		provider:       cluster.NewProvider(providerOption),
 		name:           name,
 		kubeConfigPath: kubeConfigPath,
 	}
@@ -36,7 +39,9 @@ func NewKindCluster(name, kubeConfigPath string) (c *kindCluster, e error) {
 		return
 	}
 
-	e = c.provider.Create(name)
+	createOption = cluster.CreateWithNodeImage(nodeImage)
+
+	e = c.provider.Create(name, createOption)
 	if e != nil {
 		return
 	}

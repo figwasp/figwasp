@@ -8,6 +8,7 @@ func TestKindCluster(t *testing.T) {
 	const (
 		clusterName    = "test-cluster"
 		kubeConfigPath = ""
+		nodeImage      = "kindest/node:v1.21.1"
 	)
 
 	var (
@@ -15,7 +16,7 @@ func TestKindCluster(t *testing.T) {
 		e       error
 	)
 
-	cluster, e = NewKindCluster(clusterName, kubeConfigPath)
+	cluster, e = NewKindCluster(nodeImage, clusterName, kubeConfigPath)
 	if e != nil {
 		t.Error(e)
 	}
