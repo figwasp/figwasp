@@ -3,7 +3,6 @@ package main
 import (
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/joel-ling/alduin/test"
 	"github.com/stretchr/testify/assert"
@@ -13,7 +12,6 @@ func TestMain(t *testing.T) {
 	const (
 		status0 = http.StatusTeapot
 		status1 = http.StatusNoContent
-		timeout = time.Second
 	)
 
 	var (
@@ -65,7 +63,7 @@ func TestMain(t *testing.T) {
 		t.Error(e)
 	}
 
-	status, e = client.SendRequestToServerEndpoint(timeout)
+	status, e = client.SendRequestToServerEndpoint()
 	if e != nil {
 		t.Error(e)
 	}
@@ -77,7 +75,7 @@ func TestMain(t *testing.T) {
 		t.Error(e)
 	}
 
-	status, e = client.SendRequestToServerEndpoint(timeout)
+	status, e = client.SendRequestToServerEndpoint()
 	if e != nil {
 		t.Error(e)
 	}
