@@ -3,9 +3,6 @@ package images
 import (
 	"context"
 	"fmt"
-	"io"
-	"net"
-	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -14,6 +11,8 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
+	"github.com/joel-ling/alduin/test/httpclients"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDockerImage(t *testing.T) {
@@ -29,6 +28,14 @@ func TestDockerImage(t *testing.T) {
 		imageTag         = "test:v0"
 		message          = "Hello, World!"
 		path             = "/"
+		timeout          = time.Second
+		urlFormat        = "http://%s:%s"
+	)
+
+	type (
+		httpResponseVerifier interface {
+			OK(chan<- bool)
+		}
 	)
 
 	var (
@@ -36,6 +43,8 @@ func TestDockerImage(t *testing.T) {
 		dockerClient   *client.Client
 		e              error
 		image          *dockerImage
+		ok             chan bool
+		verifier       httpResponseVerifier
 	)
 
 	image, e = NewDockerImage(buildContextPath)
@@ -93,11 +102,17 @@ func TestDockerImage(t *testing.T) {
 		t.Error(e)
 	}
 
-	verifyHTTPResponse(t,
-		fmt.Sprintf(addressFormat, hostIP, hostPort),
-		path,
+	verifier = httpclients.NewSimpleHTTPClient(
+		fmt.Sprintf(urlFormat, hostIP, hostPort),
 		message,
+		timeout,
 	)
+
+	ok = make(chan bool)
+
+	go verifier.OK(ok)
+
+	assert.True(t, <-ok)
 
 	e = dockerClient.ContainerStop(
 		context.Background(),
@@ -115,64 +130,5 @@ func TestDockerImage(t *testing.T) {
 	)
 	if e != nil {
 		t.Error(e)
-	}
-}
-
-func verifyHTTPResponse(t *testing.T, address, path, messageExpected string) {
-	const (
-		network   = "tcp"
-		timeout   = time.Second
-		urlFormat = "http://%s%s"
-	)
-
-	var (
-		e                error
-		httpResponse     *http.Response
-		httpResponseBody []byte
-		timer            context.Context
-		url              string
-	)
-
-	timer, _ = context.WithTimeout(
-		context.Background(),
-		timeout,
-	)
-
-	for {
-		_, e = net.Dial(network, address)
-		if e == nil {
-			break
-		}
-
-		if timer.Err() != nil {
-			t.Error(e)
-
-			break
-		}
-	}
-
-	url = fmt.Sprintf(urlFormat,
-		address,
-		path,
-	)
-
-	httpResponse, e = http.Get(url)
-	if e != nil {
-		t.Error(e)
-	}
-
-	if httpResponse.StatusCode != http.StatusOK {
-		t.Fail()
-	}
-
-	defer httpResponse.Body.Close()
-
-	httpResponseBody, e = io.ReadAll(httpResponse.Body)
-	if e != nil {
-		t.Error(e)
-	}
-
-	if string(httpResponseBody) != messageExpected {
-		t.Fail()
 	}
 }
