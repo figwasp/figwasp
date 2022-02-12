@@ -1,6 +1,7 @@
 package main
 
 import (
+	"testing"
 	"time"
 
 	"github.com/joel-ling/alduin/test"
