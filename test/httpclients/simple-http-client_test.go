@@ -2,49 +2,56 @@ package httpclients
 
 import (
 	"fmt"
+	"net"
 	"net/http"
-	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSimpleHTTPClient(t *testing.T) {
 	const (
-		message = "Hello, World!"
+		address   = "127.0.0.1:8000"
+		message   = "Hello, World!"
+		network   = "tcp"
+		timeout   = time.Second
+		urlFormat = "http://%s"
 	)
 
 	var (
 		client   simpleHTTPClient
-		handler  http.Handler
-		received string
-		server   *httptest.Server
-		status   int
+		ok       chan bool
+		server   http.Server
+		listener net.Listener
 
 		e error
 	)
 
-	handler = http.HandlerFunc(
+	client = NewSimpleHTTPClient(
+		fmt.Sprintf(urlFormat, address),
+		message,
+		timeout,
+	)
+
+	ok = make(chan bool)
+
+	go client.OK(ok)
+
+	server.Handler = http.HandlerFunc(
 		func(writer http.ResponseWriter, request *http.Request) {
 			fmt.Fprintf(writer, message)
 		},
 	)
 
-	server = httptest.NewServer(handler)
-
-	defer server.Close()
-
-	client = NewSimpleHTTPClient()
-
-	status, received, e = client.Get(server.URL)
+	listener, e = net.Listen(network, address)
 	if e != nil {
 		t.Error(e)
 	}
-	if status != http.StatusOK {
-		t.Fail()
-	}
 
-	assert.Equal(t,
-		message, received,
-	)
+	go server.Serve(listener)
+
+	defer server.Close()
+
+	assert.True(t, <-ok)
 }
