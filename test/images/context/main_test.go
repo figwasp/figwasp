@@ -1,12 +1,11 @@
 package main
 
 import (
-	"context"
-	"io"
-	"net"
-	"net/http"
 	"testing"
 	"time"
+
+	"github.com/joel-ling/alduin/test/httpclients"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMain(t *testing.T) {
@@ -23,54 +22,32 @@ func TestMain(t *testing.T) {
 		testTimeout = time.Second
 	)
 
+	type (
+		httpResponseVerifier interface {
+			OK(chan<- bool)
+		}
+	)
+
 	var (
-		e            error
-		response     *http.Response
-		responseBody []byte
-		timer        context.Context
+		ok       chan bool
+		verifier httpResponseVerifier
 	)
 
 	message = testMessage
 	path = testPath
 	port = testPort
 
-	go main()
-
-	timer, _ = context.WithTimeout(
-		context.Background(),
+	verifier = httpclients.NewSimpleHTTPClient(
+		testURL,
+		testMessage,
 		testTimeout,
 	)
 
-	for {
-		_, e = net.Dial(network, testAddress)
-		if e == nil {
-			break
-		}
+	ok = make(chan bool)
 
-		if timer.Err() != nil {
-			t.Error(e)
+	go verifier.OK(ok)
 
-			break
-		}
-	}
+	go main()
 
-	response, e = http.Get(testURL)
-	if e != nil {
-		t.Error(e)
-	}
-
-	if response.StatusCode != http.StatusOK {
-		t.Fail()
-	}
-
-	defer response.Body.Close()
-
-	responseBody, e = io.ReadAll(response.Body)
-	if e != nil {
-		t.Error(e)
-	}
-
-	if string(responseBody) != testMessage {
-		t.Fail()
-	}
+	assert.True(t, <-ok)
 }
