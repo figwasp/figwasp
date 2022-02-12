@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -10,8 +11,8 @@ import (
 
 func TestMain(t *testing.T) {
 	const (
-		status0 = 418
-		status1 = 204
+		status0 = http.StatusTeapot
+		status1 = http.StatusNoContent
 		timeout = time.Second
 	)
 
