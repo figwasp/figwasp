@@ -1,5 +1,9 @@
 package test
 
+import (
+	"github.com/joel-ling/alduin/test/repositories"
+)
+
 type Repository interface {
 	destroyable
 
@@ -7,6 +11,6 @@ type Repository interface {
 	BuildAndPushAlduinImage() error
 }
 
-func NewRepository() (r Repository, e error) {
-	return
+func NewRepository() (Repository, error) {
+	return repositories.NewDockerRegistry()
 }

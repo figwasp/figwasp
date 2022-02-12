@@ -1,5 +1,9 @@
 package test
 
+import (
+	"github.com/joel-ling/alduin/test/clusters"
+)
+
 type Cluster interface {
 	destroyable
 
@@ -7,6 +11,6 @@ type Cluster interface {
 	DeployAlduin() error
 }
 
-func NewCluster() (c Cluster, e error) {
-	return
+func NewCluster() (Cluster, error) {
+	return clusters.NewKindCluster()
 }
