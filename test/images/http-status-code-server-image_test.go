@@ -6,13 +6,17 @@ import (
 )
 
 func TestHTTPStatusCodeServerImage(t *testing.T) {
+	const (
+		buildContextPath = "http-status-code-server"
+	)
+
 	var (
 		image *httpStatusCodeServerImage
 
 		e error
 	)
 
-	image, e = NewHTTPStatusCodeServerImage(http.StatusTeapot)
+	image, e = NewHTTPStatusCodeServerImage(http.StatusTeapot, buildContextPath)
 	if e != nil {
 		t.Error(e)
 	}

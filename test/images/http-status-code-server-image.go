@@ -18,12 +18,11 @@ type httpStatusCodeServerImage struct {
 	buildOptions types.ImageBuildOptions
 }
 
-func NewHTTPStatusCodeServerImage(statusCode int) (
+func NewHTTPStatusCodeServerImage(statusCode int, buildContextPath string) (
 	i *httpStatusCodeServerImage, e error,
 ) {
 	const (
 		buildArgumentKey = "STATUS_CODE"
-		buildContextPath = "http-status-code-server"
 	)
 
 	i = &httpStatusCodeServerImage{
