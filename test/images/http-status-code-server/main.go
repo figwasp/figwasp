@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io"
 	"log"
 	"strconv"
 
@@ -16,8 +15,6 @@ var (
 
 func main() {
 	var (
-		server io.Closer
-
 		status int
 
 		e error
@@ -28,10 +25,11 @@ func main() {
 		log.Fatalln(e)
 	}
 
-	server, e = servers.NewHTTPStatusCodeServer(status)
+	_, e = servers.NewHTTPStatusCodeServer(status)
 	if e != nil {
 		log.Fatalln(e)
 	}
 
-	defer server.Close()
+	for {
+	}
 }
