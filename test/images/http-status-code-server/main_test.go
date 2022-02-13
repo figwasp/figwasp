@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/joel-ling/alduin/test"
 	"github.com/joel-ling/alduin/test/clients"
 	"github.com/stretchr/testify/assert"
 )
@@ -16,7 +15,7 @@ func TestMain(t *testing.T) {
 	)
 
 	var (
-		client test.Client
+		client interface{ SendRequestToServerEndpoint() (int, error) }
 
 		status int
 
