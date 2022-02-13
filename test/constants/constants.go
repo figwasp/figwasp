@@ -5,7 +5,11 @@ import (
 )
 
 const (
-	StatusCodeServerIP   = "127.0.0.1"
+	localhost = "127.0.0.1"
+)
+
+const (
+	StatusCodeServerIP   = localhost
 	StatusCodeServerPort = "8000"
 )
 
@@ -14,7 +18,13 @@ const (
 )
 
 const (
+	DockerRegistryAddress           = localhost + ":5000"
 	StatusCodeGetterTimeoutDuration = time.Second
 	StatusCodeServerContainerName   = "status-code-server"
 	StatusCodeServerEndpointURL     = "http://" + StatusCodeServerAddress
+)
+
+const (
+	StatusCodeServerImageRef = DockerRegistryAddress + "/" +
+		StatusCodeServerContainerName + ":latest"
 )
