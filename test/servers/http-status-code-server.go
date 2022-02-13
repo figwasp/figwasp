@@ -1,6 +1,7 @@
 package servers
 
 import (
+	"net"
 	"net/http"
 	"time"
 
@@ -14,13 +15,17 @@ type httpStatusCodeServer struct {
 func NewHTTPStatusCodeServer(statusCode int) (
 	s *httpStatusCodeServer, e error,
 ) {
+	const (
+		network = "tcp"
+	)
+
 	var (
-		timer *time.Timer
+		listener net.Listener
+		timer    *time.Timer
 	)
 
 	s = &httpStatusCodeServer{
 		httpServer: http.Server{
-			Addr: constants.StatusCodeServerAddress,
 			Handler: http.HandlerFunc(
 				func(writer http.ResponseWriter, request *http.Request) {
 					writer.WriteHeader(statusCode)
@@ -29,7 +34,12 @@ func NewHTTPStatusCodeServer(statusCode int) (
 		},
 	}
 
-	go s.httpServer.ListenAndServe()
+	listener, e = net.Listen(network, constants.StatusCodeServerListenAddress)
+	if e != nil {
+		return
+	}
+
+	go s.httpServer.Serve(listener)
 
 	timer = time.NewTimer(constants.StatusCodeGetterTimeoutDuration)
 

@@ -22,6 +22,7 @@ const (
 	StatusCodeGetterTimeoutDuration = time.Second
 	StatusCodeServerContainerName   = "status-code-server"
 	StatusCodeServerEndpointURL     = "http://" + StatusCodeServerAddress
+	StatusCodeServerListenAddress   = ":" + StatusCodeServerPort
 )
 
 const (
