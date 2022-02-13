@@ -21,6 +21,7 @@ const (
 	DockerRegistryAddress           = localhost + ":5000"
 	StatusCodeGetterTimeoutDuration = time.Second
 	StatusCodeServerContainerName   = "status-code-server"
+	StatusCodeServerContainerPort   = StatusCodeServerPort + "/tcp"
 	StatusCodeServerEndpointURL     = "http://" + StatusCodeServerAddress
 	StatusCodeServerListenAddress   = ":" + StatusCodeServerPort
 )

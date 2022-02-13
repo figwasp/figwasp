@@ -83,6 +83,32 @@ func (i *httpStatusCodeServerImage) Build() (e error) {
 	return
 }
 
+func (i *httpStatusCodeServerImage) Push() (e error) {
+	const (
+		registryAuthPlaceholder = "arbitrary"
+	)
+
+	var (
+		consoleOutput io.ReadCloser
+	)
+
+	consoleOutput, e = i.dockerClient.ImagePush(
+		context.Background(),
+		i.buildOptions.Tags[0],
+		types.ImagePushOptions{
+			RegistryAuth: registryAuthPlaceholder,
+			// XXX (HACK): https://stackoverflow.com/questions/44400971/
+		},
+	)
+
+	_, e = io.Copy(os.Stderr, consoleOutput)
+	if e != nil {
+		return
+	}
+
+	return
+}
+
 func (i *httpStatusCodeServerImage) Remove() (e error) {
 	_, e = i.dockerClient.ImageRemove(
 		context.Background(),
