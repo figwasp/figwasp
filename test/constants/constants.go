@@ -23,7 +23,7 @@ const (
 	StatusCodeServerContainerName   = "status-code-server"
 	StatusCodeServerContainerPort   = StatusCodeServerPort + "/tcp"
 	StatusCodeServerEndpointURL     = "http://" + StatusCodeServerAddress
-	StatusCodeServerListenAddress   = ":" + StatusCodeServerPort
+	StatusCodeServerListenAddress   = "0.0.0.0:" + StatusCodeServerPort
 )
 
 const (
