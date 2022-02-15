@@ -5,7 +5,7 @@ import (
 )
 
 type Client interface {
-	SendRequestToServerEndpoint() (int, error)
+	GetStatusCodeFromEndpoint() (int, error)
 }
 
 func NewClient() (Client, error) {

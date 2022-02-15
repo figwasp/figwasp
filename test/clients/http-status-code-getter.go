@@ -15,7 +15,7 @@ func NewHTTPStatusCodeGetter() (g *httpStatusCodeGetter, e error) {
 	return
 }
 
-func (g *httpStatusCodeGetter) SendRequestToServerEndpoint() (
+func (g *httpStatusCodeGetter) GetStatusCodeFromEndpoint() (
 	statusCode int, e error,
 ) {
 	var (

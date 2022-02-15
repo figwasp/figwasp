@@ -17,7 +17,7 @@ func TestDockerRegistry(t *testing.T) {
 	)
 
 	var (
-		client    interface{ SendRequestToServerEndpoint() (int, error) }
+		client    interface{ GetStatusCodeFromEndpoint() (int, error) }
 		container interface{ Destroy() error }
 		registry  *dockerRegistry
 
@@ -53,7 +53,7 @@ func TestDockerRegistry(t *testing.T) {
 		t.Error(e)
 	}
 
-	status, e = client.SendRequestToServerEndpoint()
+	status, e = client.GetStatusCodeFromEndpoint()
 	if e != nil {
 		t.Error(e)
 	}

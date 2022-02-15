@@ -15,7 +15,7 @@ func TestMain(t *testing.T) {
 	)
 
 	var (
-		client interface{ SendRequestToServerEndpoint() (int, error) }
+		client interface{ GetStatusCodeFromEndpoint() (int, error) }
 
 		status int
 
@@ -31,7 +31,7 @@ func TestMain(t *testing.T) {
 
 	go main()
 
-	status, e = client.SendRequestToServerEndpoint()
+	status, e = client.GetStatusCodeFromEndpoint()
 	if e != nil {
 		t.Error(e)
 	}

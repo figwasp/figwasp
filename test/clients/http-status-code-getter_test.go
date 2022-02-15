@@ -35,7 +35,7 @@ func TestHTTPStatusCodeGetter(t *testing.T) {
 
 	defer server.Close()
 
-	status, e = client.SendRequestToServerEndpoint()
+	status, e = client.GetStatusCodeFromEndpoint()
 	if e != nil {
 		t.Error(e)
 	}

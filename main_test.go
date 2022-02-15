@@ -64,7 +64,7 @@ func TestMain(t *testing.T) {
 		t.Error(e)
 	}
 
-	status, e = client.SendRequestToServerEndpoint()
+	status, e = client.GetStatusCodeFromEndpoint()
 	if e != nil {
 		t.Error(e)
 	}
@@ -76,7 +76,7 @@ func TestMain(t *testing.T) {
 		t.Error(e)
 	}
 
-	status, e = client.SendRequestToServerEndpoint()
+	status, e = client.GetStatusCodeFromEndpoint()
 	if e != nil {
 		t.Error(e)
 	}
