@@ -10,8 +10,9 @@ import (
 
 func TestMain(t *testing.T) {
 	const (
-		status0 = http.StatusTeapot
-		status1 = http.StatusNoContent
+		serverImageBuildContextPath = "test/images/http-status-code-server"
+		status0                     = http.StatusTeapot
+		status1                     = http.StatusNoContent
 	)
 
 	var (
@@ -31,7 +32,7 @@ func TestMain(t *testing.T) {
 
 	defer repository.Destroy()
 
-	e = repository.BuildAndPushServerImage(status0)
+	e = repository.BuildAndPushServerImage(status0, serverImageBuildContextPath)
 	if e != nil {
 		t.Error(e)
 	}
@@ -70,7 +71,7 @@ func TestMain(t *testing.T) {
 
 	assert.EqualValues(t, status0, status)
 
-	e = repository.BuildAndPushServerImage(status1)
+	e = repository.BuildAndPushServerImage(status1, serverImageBuildContextPath)
 	if e != nil {
 		t.Error(e)
 	}

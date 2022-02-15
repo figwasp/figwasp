@@ -7,7 +7,7 @@ import (
 type Repository interface {
 	destroyable
 
-	BuildAndPushServerImage(int) error
+	BuildAndPushServerImage(int, string) error
 	BuildAndPushAlduinImage() error
 }
 
