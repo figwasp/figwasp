@@ -11,7 +11,7 @@ import (
 
 func TestDockerContainer(t *testing.T) {
 	const (
-		containerPort = "80/tcp"
+		containerPort = "80"
 		imageRef      = "nginx:latest"
 	)
 

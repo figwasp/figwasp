@@ -8,8 +8,9 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
+
 	"github.com/joel-ling/alduin/test/constants"
+	"github.com/joel-ling/alduin/test/containers/configs"
 )
 
 type dockerContainer struct {
@@ -20,12 +21,14 @@ type dockerContainer struct {
 func NewDockerContainer(imageRef, containerPort string) (
 	c *dockerContainer, e error,
 ) {
-	const (
-		attachStreams = false
-	)
-
 	var (
 		consoleOutput io.ReadCloser
+
+		config interface {
+			Config() *container.Config
+			HostConfig() *container.HostConfig
+			PublishTCPPort(string, string, string)
+		}
 	)
 
 	c = &dockerContainer{}
@@ -46,25 +49,17 @@ func NewDockerContainer(imageRef, containerPort string) (
 
 	io.Copy(os.Stderr, consoleOutput)
 
+	config = configs.NewDockerContainerConfig(imageRef)
+
+	config.PublishTCPPort(containerPort,
+		constants.StatusCodeServerIP,
+		constants.StatusCodeServerPort,
+	)
+
 	c.metadata, e = c.dockerClient.ContainerCreate(
 		context.Background(),
-		&container.Config{
-			ExposedPorts: nat.PortSet{
-				nat.Port(containerPort): struct{}{},
-			},
-			Tty:   attachStreams,
-			Image: imageRef,
-		},
-		&container.HostConfig{
-			PortBindings: nat.PortMap{
-				nat.Port(containerPort): []nat.PortBinding{
-					{
-						HostIP:   constants.StatusCodeServerIP,
-						HostPort: constants.StatusCodeServerPort,
-					},
-				},
-			},
-		},
+		config.Config(),
+		config.HostConfig(),
 		nil,
 		nil,
 		constants.StatusCodeServerContainerName,
