@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/joel-ling/alduin/pkg/clients"
+	"github.com/joel-ling/alduin/test/pkg/clients"
 )
 
 func TestMain(t *testing.T) {
