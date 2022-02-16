@@ -8,7 +8,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 
-	"github.com/joel-ling/alduin/pkg/containers/configs"
+	"github.com/joel-ling/alduin/test/pkg/containers/configs"
 )
 
 type DockerContainer struct {
@@ -17,8 +17,7 @@ type DockerContainer struct {
 }
 
 func NewDockerContainer(
-	imageRef, name string, config *configs.DockerContainerConfig,
-	stream io.Writer,
+	name string, config *configs.DockerContainerConfig, stream io.Writer,
 ) (
 	c *DockerContainer, e error,
 ) {
@@ -36,7 +35,7 @@ func NewDockerContainer(
 
 	response, e = c.dockerClient.ImagePull(
 		context.Background(),
-		imageRef,
+		config.Config().Image,
 		types.ImagePullOptions{},
 	)
 	if e != nil {
