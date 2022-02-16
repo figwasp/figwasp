@@ -3,7 +3,7 @@
 FROM golang:1.17
 
 ARG BINARY_NAME=http-status-code-server
-ARG SOURCE_PATH=./cmd/$BINARY_NAME
+ARG SOURCE_PATH=./test/cmd/$BINARY_NAME
 
 WORKDIR /usr/src/$BINARY_NAME
 
@@ -11,7 +11,7 @@ COPY . .
 
 #RUN CGO_ENABLED=0 go test -v $SOURCE_PATH
 
-ARG SERVER_PORT="8000"
+ARG SERVER_PORT="3000"
 ARG STATUS_CODE="501"
 
 RUN CGO_ENABLED=0 GOOS=linux go build \
