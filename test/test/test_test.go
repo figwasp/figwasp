@@ -69,7 +69,7 @@ func TestTest(t *testing.T) {
 		t.Error(e)
 	}
 
-	defer repository.Close()
+	defer repository.Destroy()
 
 	// build and push container image of server to repository
 

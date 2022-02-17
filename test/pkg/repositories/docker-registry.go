@@ -72,7 +72,7 @@ func NewDockerRegistry(address net.TCPAddr) (r *DockerRegistry, e error) {
 	return
 }
 
-func (r *DockerRegistry) Close() (e error) {
+func (r *DockerRegistry) Destroy() (e error) {
 	r.cancel()
 
 	return
