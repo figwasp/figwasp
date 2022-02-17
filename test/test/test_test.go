@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/joel-ling/alduin/test/pkg/clients"
+	"github.com/joel-ling/alduin/test/pkg/clusters"
 	"github.com/joel-ling/alduin/test/pkg/containers"
 	"github.com/joel-ling/alduin/test/pkg/containers/configs"
 	"github.com/joel-ling/alduin/test/pkg/images"
@@ -34,6 +35,10 @@ func TestTest(t *testing.T) {
 		statusCodeKey   = "STATUS_CODE"
 		statusCodeValue = http.StatusTeapot
 
+		clusterName    = "test-cluster"
+		kubeConfigPath = ""
+		nodeImageRef   = "kindest/node:v1.21.1"
+
 		scheme  = "http"
 		timeout = time.Second
 	)
@@ -47,6 +52,8 @@ func TestTest(t *testing.T) {
 
 		config    *configs.DockerContainerConfig
 		container *containers.DockerContainer
+
+		cluster *clusters.KindCluster
 
 		client        *clients.HTTPClient
 		endpoint      url.URL
@@ -131,6 +138,19 @@ func TestTest(t *testing.T) {
 	}
 
 	defer container.Remove()
+
+	// start Kubernetes cluster
+
+	cluster, e = clusters.NewKindCluster(
+		nodeImageRef,
+		clusterName,
+		kubeConfigPath,
+	)
+	if e != nil {
+		t.Error(e)
+	}
+
+	defer cluster.Destroy()
 
 	// interact with server in container via client
 
