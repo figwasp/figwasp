@@ -2,10 +2,12 @@ package test
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,17 +15,29 @@ import (
 
 	"github.com/joel-ling/alduin/test/pkg/clients"
 	"github.com/joel-ling/alduin/test/pkg/clusters"
-	"github.com/joel-ling/alduin/test/pkg/containers"
-	"github.com/joel-ling/alduin/test/pkg/containers/configs"
+	//"github.com/joel-ling/alduin/test/pkg/containers"
+	//"github.com/joel-ling/alduin/test/pkg/containers/configs"
+	"github.com/joel-ling/alduin/test/pkg/deployments"
 	"github.com/joel-ling/alduin/test/pkg/images"
 	"github.com/joel-ling/alduin/test/pkg/repositories"
 )
 
 func TestTest(t *testing.T) {
 	const (
-		localhost = "127.0.0.1"
-
+		any            = "0.0.0.0"
+		dockerHost     = "172.17.0.1"
+		localhost      = "127.0.0.1"
 		repositoryPort = 5000
+
+		clusterName         = "test-cluster"
+		kubeConfigDirectory = "/tmp"
+		kubeConfigPattern   = "*"
+		nodeImageRef        = "kindest/node:v1.21.1"
+
+		//repositoryImageRef   = "registry:2"
+		//repositoryLabelKey   = "app"
+		//repositoryLabelValue = "repository"
+		//repositoryName       = "test-repository"
 
 		buildContextPath = "../.."
 		dockerfilePath   = "test/build/http-status-code-server/Dockerfile"
@@ -35,25 +49,32 @@ func TestTest(t *testing.T) {
 		statusCodeKey   = "STATUS_CODE"
 		statusCodeValue = http.StatusTeapot
 
-		clusterName    = "test-cluster"
-		kubeConfigPath = ""
-		nodeImageRef   = "kindest/node:v1.21.1"
+		deploymentLabelKey   = "app"
+		deploymentLabelValue = "test"
+		deploymentName       = "test-deployment"
 
 		scheme  = "http"
 		timeout = time.Second
 	)
 
 	var (
-		repository        *repositories.DockerRegistry
+		cluster           *clusters.KindCluster
+		kubeConfigFile    *os.File
 		repositoryAddress net.TCPAddr
+
+		//repository        *deployments.KubernetesDeployment
+		//repositoryAddress net.TCPAddr
+
+		repository *repositories.DockerRegistry
 
 		image    *images.DockerImage
 		imageRef string
 
-		config    *configs.DockerContainerConfig
-		container *containers.DockerContainer
+		//config    *configs.DockerContainerConfig
+		//container *containers.DockerContainer
 
-		cluster *clusters.KindCluster
+		deployment *deployments.KubernetesDeployment
+		//repositoryIP string
 
 		client        *clients.HTTPClient
 		endpoint      url.URL
@@ -64,10 +85,82 @@ func TestTest(t *testing.T) {
 		e error
 	)
 
-	// set up container image repository
+	// start Kubernetes cluster
+
+	kubeConfigFile, e = ioutil.TempFile(
+		kubeConfigDirectory,
+		kubeConfigPattern,
+	)
+	if e != nil {
+		t.Error(e)
+	}
+
+	defer os.Remove(
+		kubeConfigFile.Name(),
+	)
+
+	cluster, e = clusters.NewKindCluster(
+		nodeImageRef,
+		clusterName,
+		kubeConfigFile.Name(),
+	)
+	if e != nil {
+		t.Error(e)
+	}
+
+	//cluster.AddPortMapping(repositoryPort)
+	cluster.AddPortMapping(serverPortValue)
+
+	repositoryAddress = net.TCPAddr{
+		IP:   net.ParseIP(dockerHost),
+		Port: repositoryPort,
+	}
+
+	cluster.AddHTTPRegistryMirror(repositoryAddress)
+
+	e = cluster.Create()
+	if e != nil {
+		t.Error(e)
+	}
+
+	defer cluster.Destroy()
+
+	/* deploy container image repository within cluster
+
+	repository, e = deployments.NewKubernetesDeployment(
+		repositoryName,
+		kubeConfigFile.Name(),
+	)
+	if e != nil {
+		t.Error(e)
+	}
+
+	repository.SetLabel(repositoryLabelKey, repositoryLabelValue)
+
+	repository.AddSingleTCPPortContainer(
+		repositoryName,
+		repositoryImageRef,
+		repositoryPort,
+	)
+
+	e = repository.Create()
+	if e != nil {
+		t.Error(e)
+	}
+
+	defer repository.Delete()
 
 	repositoryAddress = net.TCPAddr{
 		IP:   net.ParseIP(localhost),
+		Port: repositoryPort,
+	}
+
+	*/
+
+	// set up container image repository
+
+	repositoryAddress = net.TCPAddr{
+		IP:   net.ParseIP(any),
 		Port: repositoryPort,
 	}
 
@@ -83,6 +176,11 @@ func TestTest(t *testing.T) {
 	image, e = images.NewDockerImage(buildContextPath, dockerfilePath)
 	if e != nil {
 		t.Error(e)
+	}
+
+	repositoryAddress = net.TCPAddr{
+		IP:   net.ParseIP(localhost),
+		Port: repositoryPort,
 	}
 
 	imageRef = fmt.Sprintf(imageRefFormat,
@@ -115,7 +213,7 @@ func TestTest(t *testing.T) {
 		t.Error(e)
 	}
 
-	// start container using image pulled from repository
+	/* start container using image pulled from repository
 
 	config, e = configs.NewDockerContainerConfig(imageRef)
 	if e != nil {
@@ -139,18 +237,32 @@ func TestTest(t *testing.T) {
 
 	defer container.Remove()
 
-	// start Kubernetes cluster
+	*/
 
-	cluster, e = clusters.NewKindCluster(
-		nodeImageRef,
-		clusterName,
-		kubeConfigPath,
+	// deploy test server
+
+	deployment, e = deployments.NewKubernetesDeployment(
+		deploymentName,
+		kubeConfigFile.Name(),
 	)
 	if e != nil {
 		t.Error(e)
 	}
 
-	defer cluster.Destroy()
+	deployment.SetLabel(deploymentLabelKey, deploymentLabelValue)
+
+	deployment.AddSingleTCPPortContainer(
+		imageName,
+		strings.ReplaceAll(imageRef, localhost, dockerHost),
+		serverPortValue,
+	)
+
+	e = deployment.Create()
+	if e != nil {
+		t.Error(e)
+	}
+
+	defer deployment.Delete()
 
 	// interact with server in container via client
 
