@@ -15,8 +15,6 @@ import (
 
 	"github.com/joel-ling/alduin/test/pkg/clients"
 	"github.com/joel-ling/alduin/test/pkg/clusters"
-	//"github.com/joel-ling/alduin/test/pkg/containers"
-	//"github.com/joel-ling/alduin/test/pkg/containers/configs"
 	"github.com/joel-ling/alduin/test/pkg/deployments"
 	"github.com/joel-ling/alduin/test/pkg/images"
 	"github.com/joel-ling/alduin/test/pkg/repositories"
@@ -33,11 +31,6 @@ func TestTest(t *testing.T) {
 		kubeConfigDirectory = "/tmp"
 		kubeConfigPattern   = "*"
 		nodeImageRef        = "kindest/node:v1.21.1"
-
-		//repositoryImageRef   = "registry:2"
-		//repositoryLabelKey   = "app"
-		//repositoryLabelValue = "repository"
-		//repositoryName       = "test-repository"
 
 		buildContextPath = "../.."
 		dockerfilePath   = "test/build/http-status-code-server/Dockerfile"
@@ -62,19 +55,12 @@ func TestTest(t *testing.T) {
 		kubeConfigFile    *os.File
 		repositoryAddress net.TCPAddr
 
-		//repository        *deployments.KubernetesDeployment
-		//repositoryAddress net.TCPAddr
-
 		repository *repositories.DockerRegistry
 
 		image    *images.DockerImage
 		imageRef string
 
-		//config    *configs.DockerContainerConfig
-		//container *containers.DockerContainer
-
 		deployment *deployments.KubernetesDeployment
-		//repositoryIP string
 
 		client        *clients.HTTPClient
 		endpoint      url.URL
@@ -108,7 +94,6 @@ func TestTest(t *testing.T) {
 		t.Error(e)
 	}
 
-	//cluster.AddPortMapping(repositoryPort)
 	cluster.AddPortMapping(serverPortValue)
 
 	repositoryAddress = net.TCPAddr{
@@ -124,38 +109,6 @@ func TestTest(t *testing.T) {
 	}
 
 	defer cluster.Destroy()
-
-	/* deploy container image repository within cluster
-
-	repository, e = deployments.NewKubernetesDeployment(
-		repositoryName,
-		kubeConfigFile.Name(),
-	)
-	if e != nil {
-		t.Error(e)
-	}
-
-	repository.SetLabel(repositoryLabelKey, repositoryLabelValue)
-
-	repository.AddSingleTCPPortContainer(
-		repositoryName,
-		repositoryImageRef,
-		repositoryPort,
-	)
-
-	e = repository.Create()
-	if e != nil {
-		t.Error(e)
-	}
-
-	defer repository.Delete()
-
-	repositoryAddress = net.TCPAddr{
-		IP:   net.ParseIP(localhost),
-		Port: repositoryPort,
-	}
-
-	*/
 
 	// set up container image repository
 
@@ -213,33 +166,7 @@ func TestTest(t *testing.T) {
 		t.Error(e)
 	}
 
-	/* start container using image pulled from repository
-
-	config, e = configs.NewDockerContainerConfig(imageRef)
-	if e != nil {
-		t.Error(e)
-	}
-
-	config.PublishTCPPort(
-		fmt.Sprint(serverPortValue),
-		localhost,
-		fmt.Sprint(serverPortValue),
-	)
-
-	container, e = containers.NewDockerContainer(
-		imageName,
-		config,
-		os.Stderr,
-	)
-	if e != nil {
-		t.Error(e)
-	}
-
-	defer container.Remove()
-
-	*/
-
-	// deploy test server
+	// deploy test server to Kubernetes cluster
 
 	deployment, e = deployments.NewKubernetesDeployment(
 		deploymentName,
@@ -264,7 +191,7 @@ func TestTest(t *testing.T) {
 
 	defer deployment.Delete()
 
-	// interact with server in container via client
+	// interact with Kubernetes service via client
 
 	client, e = clients.NewHTTPClient()
 	if e != nil {
