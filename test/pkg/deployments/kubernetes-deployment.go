@@ -22,7 +22,7 @@ type KubernetesDeployment struct {
 }
 
 func NewKubernetesDeployment(
-	name, kubeConfigPath string,
+	name, serviceAccountName, kubeConfigPath string,
 ) (
 	d *KubernetesDeployment, e error,
 ) {
@@ -62,8 +62,9 @@ func NewKubernetesDeployment(
 						Labels: make(map[string]string),
 					},
 					Spec: coreV1.PodSpec{
-						Containers:  make([]coreV1.Container, 0),
-						HostNetwork: hostNetwork,
+						Containers:         make([]coreV1.Container, 0),
+						ServiceAccountName: serviceAccountName,
+						HostNetwork:        hostNetwork,
 					},
 				},
 			},
@@ -102,7 +103,19 @@ func (d *KubernetesDeployment) SetLabel(key, value string) {
 	return
 }
 
-func (d *KubernetesDeployment) AddSingleTCPPortContainer(
+func (d *KubernetesDeployment) AddContainerWithoutPorts(name, imageRef string) {
+	d.deployment.Spec.Template.Spec.Containers = append(
+		d.deployment.Spec.Template.Spec.Containers,
+		coreV1.Container{
+			Name:  name,
+			Image: imageRef,
+		},
+	)
+
+	return
+}
+
+func (d *KubernetesDeployment) AddContainerWithSingleTCPPort(
 	name, imageRef string, port int32,
 ) {
 	d.deployment.Spec.Template.Spec.Containers = append(

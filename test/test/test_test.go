@@ -45,6 +45,7 @@ func TestTest(t *testing.T) {
 		deploymentLabelKey   = "app"
 		deploymentLabelValue = "test"
 		deploymentName       = "test-deployment"
+		serviceAccountName   = ""
 
 		scheme  = "http"
 		timeout = time.Second
@@ -170,6 +171,7 @@ func TestTest(t *testing.T) {
 
 	deployment, e = deployments.NewKubernetesDeployment(
 		deploymentName,
+		serviceAccountName,
 		kubeConfigFile.Name(),
 	)
 	if e != nil {
@@ -178,7 +180,7 @@ func TestTest(t *testing.T) {
 
 	deployment.SetLabel(deploymentLabelKey, deploymentLabelValue)
 
-	deployment.AddSingleTCPPortContainer(
+	deployment.AddContainerWithSingleTCPPort(
 		imageName,
 		strings.ReplaceAll(imageRef, localhost, dockerHost),
 		serverPortValue,
