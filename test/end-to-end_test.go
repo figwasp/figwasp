@@ -62,6 +62,7 @@ func TestEndToEnd(t *testing.T) {
 	const (
 		buildContextPath = ".."
 		dockerfilePath0  = "test/build/http-status-code-server/Dockerfile"
+		// relative to build context
 
 		localhost = "127.0.0.1"
 
