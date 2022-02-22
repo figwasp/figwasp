@@ -15,7 +15,7 @@ Feature: Alduin
         And there is a Kubernetes cluster
         And the server is deployed to the cluster using a Kubernetes deployment
         And the image of the server is pulled from the repository
-        And the endpoint is exposed using a Kubernetes service and ingress
+        And the endpoint is exposed using a Kubernetes service
         And Alduin is running in the cluster
         And Alduin is authenticated as a Kubernetes service account
         And the service account is authorised to get and patch deployments
