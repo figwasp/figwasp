@@ -21,13 +21,12 @@ import (
 	"github.com/joel-ling/alduin/test/pkg/repositories"
 )
 
-func TestEndToEnd(t *testing.T) {
-	// As a Kubernetes administrator deploying container applications to a
-	// cluster, I want a rolling restart of a deployment to be automatically
-	// triggered whenever the tag of a currently-deployed image is inherited by
-	// another image so that the deployment is always up-to-date without manual
-	// intervention.
+// As a Kubernetes administrator deploying container applications to a cluster,
+// I want a rolling restart of a deployment to be automatically triggered
+// whenever the tag of a currently-deployed image is inherited by another image
+// so that the deployment is always up-to-date without manual intervention.
 
+func TestEndToEnd(t *testing.T) {
 	var (
 		e error
 	)
