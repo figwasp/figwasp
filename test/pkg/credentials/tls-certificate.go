@@ -1,13 +1,12 @@
 package credentials
 
 import (
-	"crypto/ecdsa"
-    "math/big"
-	"crypto/elliptic"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
 	"io/ioutil"
+	"math/big"
 	"net"
 	"os"
 	"time"
@@ -28,25 +27,23 @@ func NewTLSCertificateForIPAddress(ip net.IP) (c *TLSCertificate, e error) {
 
 		filePermission = 0400
 
-        serialNumber = 1
+		serialNumber = 1
 
 		certValidDuration = time.Hour
 	)
 
 	var (
-		privateKey           *ecdsa.PrivateKey
+		privateKey           ed25519.PrivateKey
 		privateKeyPEMBlock   *pem.Block
 		privateKeyPKCS8Bytes []byte
+		publicKey            ed25519.PublicKey
 
 		certificateBytes    []byte
 		certificatePEMBlock *pem.Block
 		certificateTemplate *x509.Certificate
 	)
 
-	privateKey, e = ecdsa.GenerateKey(
-		elliptic.P384(),
-		rand.Reader,
-	)
+	publicKey, privateKey, e = ed25519.GenerateKey(rand.Reader)
 	if e != nil {
 		return
 	}
@@ -96,7 +93,7 @@ func NewTLSCertificateForIPAddress(ip net.IP) (c *TLSCertificate, e error) {
 		rand.Reader,
 		certificateTemplate,
 		certificateTemplate,
-		&privateKey.PublicKey,
+		publicKey,
 		privateKey,
 	)
 	if e != nil {
