@@ -2,6 +2,8 @@ package images
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"io"
 
 	"github.com/docker/docker/api/types"
@@ -77,11 +79,48 @@ func (i *DockerImage) Build(stream io.Writer) (e error) {
 	return
 }
 
-func (i *DockerImage) Push(stream io.Writer) (e error) {
+func (i *DockerImage) Push(stream io.Writer) error {
 	const (
 		registryAuth = "https://stackoverflow.com/questions/44400971/"
 	)
 
+	return i.push(stream, registryAuth)
+}
+
+func (i *DockerImage) PushWithBasicAuth(
+	stream io.Writer, username, password string,
+) (
+	e error,
+) {
+	var (
+		jsonStruct struct {
+			Username string `json:"username"`
+			Password string `json:"password"`
+		}
+
+		jsonBytes    []byte
+		registryAuth string
+	)
+
+	jsonStruct.Username = username
+	jsonStruct.Password = password
+
+	jsonBytes, e = json.Marshal(jsonStruct)
+	if e != nil {
+		return
+	}
+
+	registryAuth = base64.StdEncoding.EncodeToString(jsonBytes)
+
+	e = i.push(stream, registryAuth)
+	if e != nil {
+		return
+	}
+
+	return
+}
+
+func (i *DockerImage) push(stream io.Writer, registryAuth string) (e error) {
 	var (
 		response io.ReadCloser
 
