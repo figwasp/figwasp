@@ -21,11 +21,25 @@ const (
 
 func TestImageDigestRetrieverAgainstPublicRepository(t *testing.T) {
 	const (
-		imageRef = "golang:1.17"
+		imageRef0 = "golang:1.5.1"
+		// last updated 2015; Schema 1 manifest outdated
+		imageRef1 = "golang:1.10.1"
+		// last updated 2018; Schema 2 manifest
+
+		imageDigestEncodedExpected0 = "" +
+			"23ca2c13e498feab91c5fa38f56d3b2bfaebc98d41d283102b467a2900e48e40"
+		// obtained by pulling and inspecting image
+		imageDigestEncodedExpected1 = "" +
+			"4826b5c314a498142c7291ad835ab6be1bf02f7813d6932d01f1f0f1383cdda1"
 	)
 
 	var (
+		testCases map[string]string
+
 		retriever ImageDigestRetriever
+
+		imageDigestEncodedExpected string
+		imageRef                   string
 
 		imageDigest       digest.Digest
 		imageDigestString string
@@ -33,30 +47,37 @@ func TestImageDigestRetrieverAgainstPublicRepository(t *testing.T) {
 		e error
 	)
 
+	testCases = map[string]string{
+		imageRef0: imageDigestEncodedExpected0,
+		imageRef1: imageDigestEncodedExpected1,
+	}
+
 	retriever, e = NewPublicImageDigestRetriever()
 	if e != nil {
 		t.Error(e)
 	}
 
-	imageDigestString, e = retriever.RetrieveImageDigest(
-		imageRef,
-		context.Background(),
-	)
-	if e != nil {
-		t.Error(e)
+	for imageRef, imageDigestEncodedExpected = range testCases {
+		imageDigestString, e = retriever.RetrieveImageDigest(
+			imageRef,
+			context.Background(),
+		)
+		if e != nil {
+			t.Error(e)
+		}
+
+		imageDigest = digest.Digest(imageDigestString)
+
+		assert.Equal(t,
+			digest.SHA256,
+			imageDigest.Algorithm(),
+		)
+
+		assert.Equal(t,
+			imageDigestEncodedExpected,
+			imageDigest.Encoded(),
+		)
 	}
-
-	imageDigest = digest.Digest(imageDigestString)
-
-	assert.Equal(t,
-		digest.SHA256,
-		imageDigest.Algorithm(),
-	)
-
-	assert.Equal(t,
-		imageDigestEncodedLength,
-		len(imageDigest.Encoded()),
-	)
 }
 
 func TestImageDigestRetrieverAgainstPrivateRepositoryWithBasicAuthAndTLS(
