@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/containers/image/v5/docker"
+	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/go-digest"
 )
@@ -87,7 +88,9 @@ func (r *imageDigestRetriever) RetrieveImageDigest(
 	)
 
 	var (
+		imageCloser    types.ImageCloser
 		imageDigest    digest.Digest
+		imageManifest  []byte
 		imageReference types.ImageReference
 	)
 
@@ -98,11 +101,17 @@ func (r *imageDigestRetriever) RetrieveImageDigest(
 		return
 	}
 
-	imageDigest, e = docker.GetDigest(
-		ctx,
-		r.systemContext,
-		imageReference,
-	)
+	imageCloser, e = imageReference.NewImage(ctx, r.systemContext)
+	if e != nil {
+		return
+	}
+
+	imageManifest, _, e = imageCloser.Manifest(ctx)
+	if e != nil {
+		return
+	}
+
+	imageDigest, e = manifest.Digest(imageManifest)
 	if e != nil {
 		return
 	}
