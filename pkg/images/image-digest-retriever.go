@@ -121,7 +121,7 @@ func WithBasicAuthentication(username, password string) (
 	return
 }
 
-func WithTransportLayerSecurity(pathToCACert string) (
+func WithSelfSignedTLSCertificate(pathToCACert string) (
 	option imageDigestRetrieverOption,
 ) {
 	option = func(r *imageDigestRetriever) (e error) {

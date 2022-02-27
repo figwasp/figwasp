@@ -165,7 +165,7 @@ func TestImageDigestRetrieverAgainstPrivateRepositoryWithBasicAuthAndTLS(
 
 	retriever, e = NewImageDigestRetriever(
 		WithBasicAuthentication(username, password),
-		WithTransportLayerSecurity(
+		WithSelfSignedTLSCertificate(
 			repositoryCert.PathToCertificatePEM(),
 		),
 	)
