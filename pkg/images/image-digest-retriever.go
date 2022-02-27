@@ -24,9 +24,7 @@ type imageDigestRetriever struct {
 	pathsToRemove []string
 }
 
-func NewImageDigestRetriever(
-	options ...imageDigestRetrieverOption,
-) (
+func NewImageDigestRetriever(options ...imageDigestRetrieverOption) (
 	r *imageDigestRetriever, e error,
 ) {
 	var (
@@ -132,8 +130,8 @@ func WithTransportLayerSecurity(pathToCACert string) (
 			pathToCACertDirPattern = "*"
 
 			pathToCACertLinkFormat = "%s/ca.crt"
-			// https://pkg.go.dev/github.com/containers/image/v5/types
-			//  #SystemContext
+			// https://pkg.go.dev/
+			//  github.com/containers/image/v5/types#SystemContext
 			// > a directory containing a CA certificate (ending with ".crt")
 		)
 
