@@ -15,10 +15,6 @@ import (
 	"github.com/joel-ling/alduin/test/pkg/repositories"
 )
 
-const (
-	imageDigestEncodedLength = 64
-)
-
 func TestImageDigestRetrieverAgainstPublicRepository(t *testing.T) {
 	const (
 		imageRef0 = "golang:1.5.1"
@@ -26,9 +22,9 @@ func TestImageDigestRetrieverAgainstPublicRepository(t *testing.T) {
 		imageRef1 = "golang:1.10.1"
 		// last updated 2018; Schema 2 manifest
 
+		// obtained by pulling and inspecting images
 		imageDigestEncodedExpected0 = "" +
 			"23ca2c13e498feab91c5fa38f56d3b2bfaebc98d41d283102b467a2900e48e40"
-		// obtained by pulling and inspecting image
 		imageDigestEncodedExpected1 = "" +
 			"4826b5c314a498142c7291ad835ab6be1bf02f7813d6932d01f1f0f1383cdda1"
 	)
@@ -52,7 +48,7 @@ func TestImageDigestRetrieverAgainstPublicRepository(t *testing.T) {
 		imageRef1: imageDigestEncodedExpected1,
 	}
 
-	retriever, e = NewPublicImageDigestRetriever()
+	retriever, e = NewImageDigestRetriever()
 	if e != nil {
 		t.Error(e)
 	}
@@ -95,6 +91,8 @@ func TestImageDigestRetrieverAgainstPrivateRepositoryWithBasicAuthAndTLS(
 
 		username = "username"
 		password = "password"
+
+		imageDigestEncodedLength = 64
 	)
 
 	var (
@@ -165,10 +163,11 @@ func TestImageDigestRetrieverAgainstPrivateRepositoryWithBasicAuthAndTLS(
 		t.Error(e)
 	}
 
-	retriever, e = NewPrivateImageDigestRetriever(
-		username,
-		password,
-		repositoryCert.PathToCertificatePEM(),
+	retriever, e = NewImageDigestRetriever(
+		WithBasicAuthentication(username, password),
+		WithTransportLayerSecurity(
+			repositoryCert.PathToCertificatePEM(),
+		),
 	)
 	if e != nil {
 		t.Error(e)
