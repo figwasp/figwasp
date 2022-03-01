@@ -3,7 +3,9 @@ package clusters
 import (
 	_ "embed"
 	"fmt"
+	"io/ioutil"
 	"net"
+	"os"
 
 	"sigs.k8s.io/kind/pkg/apis/config/v1alpha4"
 	"sigs.k8s.io/kind/pkg/cluster"
@@ -21,16 +23,31 @@ type KindCluster struct {
 	nodeImageRef   string
 	name           string
 	config         *v1alpha4.Cluster
-	kubeConfigPath string
+	kubeconfigPath string
 }
 
-func NewKindCluster(nodeImageRef, name, kubeConfigPath string) (
+func NewKindCluster(nodeImageRef, name string) (
 	c *KindCluster, e error,
 ) {
+	const (
+		// See https://pkg.go.dev/io/ioutil#TempFile
+		kubeconfigDirectory = ""
+		kubeconfigFilename  = "*"
+	)
+
 	var (
+		kubeconfigFile *os.File
 		logger         log.Logger
 		providerOption cluster.ProviderOption
 	)
+
+	kubeconfigFile, e = ioutil.TempFile(
+		kubeconfigDirectory,
+		kubeconfigFilename,
+	)
+	if e != nil {
+		return
+	}
 
 	logger = cmd.NewLogger()
 
@@ -49,10 +66,14 @@ func NewKindCluster(nodeImageRef, name, kubeConfigPath string) (
 			},
 			ContainerdConfigPatches: make([]string, 0),
 		},
-		kubeConfigPath: kubeConfigPath,
+		kubeconfigPath: kubeconfigFile.Name(),
 	}
 
 	return
+}
+
+func (c *KindCluster) KubeconfigPath() string {
+	return c.kubeconfigPath
 }
 
 func (c *KindCluster) AddPortMapping(port int32) {
@@ -94,7 +115,7 @@ func (c *KindCluster) AddHTTPRegistryMirror(address net.TCPAddr) {
 func (c *KindCluster) Create() (e error) {
 	e = c.provider.Create(c.name,
 		cluster.CreateWithNodeImage(c.nodeImageRef),
-		cluster.CreateWithKubeconfigPath(c.kubeConfigPath),
+		cluster.CreateWithKubeconfigPath(c.kubeconfigPath),
 		cluster.CreateWithV1Alpha4Config(c.config),
 	)
 	if e != nil {
@@ -107,8 +128,13 @@ func (c *KindCluster) Create() (e error) {
 func (c *KindCluster) Destroy() (e error) {
 	e = c.provider.Delete(
 		c.name,
-		c.kubeConfigPath,
+		c.kubeconfigPath,
 	)
+	if e != nil {
+		return
+	}
+
+	e = os.Remove(c.kubeconfigPath)
 	if e != nil {
 		return
 	}
