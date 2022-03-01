@@ -178,11 +178,13 @@ func newDockerRegistry(address net.TCPAddr, configTemplate string,
 func (r *DockerRegistry) Destroy() (e error) {
 	r.cancel()
 
-	e = os.Remove(
-		r.htpasswd.Name(),
-	)
-	if e != nil {
-		return
+	if r.htpasswd != nil {
+		e = os.Remove(
+			r.htpasswd.Name(),
+		)
+		if e != nil {
+			return
+		}
 	}
 
 	return

@@ -41,6 +41,7 @@ func TestDeploymentPodSelector(t *testing.T) {
 	)
 
 	var (
+		repository        *repositories.DockerRegistry
 		repositoryAddress net.TCPAddr
 
 		image    *images.DockerImage
@@ -62,10 +63,12 @@ func TestDeploymentPodSelector(t *testing.T) {
 		Port: repositoryPort,
 	}
 
-	_, e = repositories.NewDockerRegistry(repositoryAddress)
+	repository, e = repositories.NewDockerRegistry(repositoryAddress)
 	if e != nil {
 		t.Error(e)
 	}
+
+	defer repository.Destroy()
 
 	image, e = images.NewDockerImage(buildContextPath, dockerfilePath)
 	if e != nil {
