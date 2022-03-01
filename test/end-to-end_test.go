@@ -2,7 +2,6 @@ package test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -116,9 +115,6 @@ func TestEndToEnd(t *testing.T) {
 
 	const (
 		// See https://pkg.go.dev/io/ioutil#TempFile
-		kubeconfigDirectory = ""
-		kubeconfigFilename  = "*"
-
 		clusterName  = "test-cluster"
 		nodeImageRef = "kindest/node:v1.23.3"
 
@@ -126,26 +122,12 @@ func TestEndToEnd(t *testing.T) {
 	)
 
 	var (
-		cluster        *clusters.KindCluster
-		kubeconfigFile *os.File
-	)
-
-	kubeconfigFile, e = ioutil.TempFile(
-		kubeconfigDirectory,
-		kubeconfigFilename,
-	)
-	if e != nil {
-		t.Error(e)
-	}
-
-	defer os.Remove(
-		kubeconfigFile.Name(),
+		cluster *clusters.KindCluster
 	)
 
 	cluster, e = clusters.NewKindCluster(
 		nodeImageRef,
 		clusterName,
-		kubeconfigFile.Name(),
 	)
 	if e != nil {
 		t.Error(e)
@@ -181,7 +163,7 @@ func TestEndToEnd(t *testing.T) {
 	deployment0, e = deployments.NewKubernetesDeployment(
 		imageName0,
 		serviceAccountName,
-		kubeconfigFile.Name(),
+		cluster.KubeconfigPath(),
 	)
 	if e != nil {
 		t.Error(e)
@@ -289,7 +271,7 @@ func TestEndToEnd(t *testing.T) {
 
 	permission, e = permissions.NewKubernetesRole(
 		imageName1,
-		kubeconfigFile.Name(),
+		cluster.KubeconfigPath(),
 	)
 	if e != nil {
 		t.Error(e)
@@ -312,7 +294,7 @@ func TestEndToEnd(t *testing.T) {
 	deployment1, e = deployments.NewKubernetesDeployment(
 		imageName1,
 		imageName1,
-		kubeconfigFile.Name(),
+		cluster.KubeconfigPath(),
 	)
 	if e != nil {
 		t.Error(e)
