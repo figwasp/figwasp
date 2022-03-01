@@ -154,13 +154,15 @@ func (d *KubernetesDeployment) Create() (e error) {
 		return
 	}
 
-	d.service, e = d.services.Create(
-		context.Background(),
-		d.service,
-		metaV1.CreateOptions{},
-	)
-	if e != nil {
-		return
+	if len(d.service.Spec.Ports) > 0 {
+		d.service, e = d.services.Create(
+			context.Background(),
+			d.service,
+			metaV1.CreateOptions{},
+		)
+		if e != nil {
+			return
+		}
 	}
 
 	for d.deployment.Status.AvailableReplicas == 0 {
