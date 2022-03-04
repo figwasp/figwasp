@@ -2,11 +2,7 @@ package repositories
 
 import (
 	"context"
-	"fmt"
-	"io/ioutil"
 	"net"
-	"os"
-	"strings"
 
 	_ "embed"
 
@@ -14,153 +10,64 @@ import (
 	"github.com/distribution/distribution/v3/registry"
 	_ "github.com/distribution/distribution/v3/registry/auth/htpasswd"
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/inmemory"
+
+	"github.com/joel-ling/alduin/test/pkg/hashes"
 )
 
-var (
-	//go:embed config.yml
-	configTemplateVanilla string
-
-	//go:embed config-auth.yml
-	configTemplateBasicAuth string
-
-	//go:embed config-auth-tls.yml
-	configTemplateBasicAuthTLS string
-
-	//go:embed htpasswd
-	htpasswdBytes []byte
+const (
+	auth    = "htpasswd"
+	pathKey = "path"
 )
 
 type DockerRegistry struct {
-	server   *registry.Registry
-	cancel   context.CancelFunc
-	htpasswd *os.File
+	config *configuration.Configuration
+	cancel context.CancelFunc
+	passwd *hashes.HtpasswdFile
 }
 
-func NewDockerRegistry(address net.TCPAddr) (*DockerRegistry, error) {
-	return newDockerRegistry(address, configTemplateVanilla)
-}
-
-func NewDockerRegistryWithBasicAuth(address net.TCPAddr) (
-	r *DockerRegistry, e error,
-) {
-	return newDockerRegistryWithBasicAuth(address, configTemplateBasicAuth)
-}
-
-func NewDockerRegistryWithBasicAuthAndTLS(
-	address net.TCPAddr, pathToCertificatePEM, pathToPrivateKeyPEM string,
-) (
+func NewDockerRegistry(address net.TCPAddr, options ...dockerRegistryOption) (
 	r *DockerRegistry, e error,
 ) {
 	const (
-		placeholder = "%s"
+		storage = "inmemory"
+		version = "0.1"
 	)
 
 	var (
-		configTemplate string
-	)
-
-	configTemplate = fmt.Sprintf(configTemplateBasicAuthTLS,
-		placeholder,
-		pathToCertificatePEM,
-		pathToPrivateKeyPEM,
-		placeholder,
-	)
-
-	r, e = newDockerRegistryWithBasicAuth(address, configTemplate)
-	if e != nil {
-		return
-	}
-
-	return
-}
-
-func newDockerRegistryWithBasicAuth(
-	address net.TCPAddr, configTemplateBasicAuth string,
-) (
-	r *DockerRegistry, e error,
-) {
-	const (
-		htpasswdFileDirectory = ""
-		htpasswdFilePattern   = "htpasswd-*"
-		placeholder           = "%s"
-	)
-
-	var (
-		configTemplate string
-		htpasswdFile   *os.File
-	)
-
-	htpasswdFile, e = ioutil.TempFile(
-		htpasswdFileDirectory,
-		htpasswdFilePattern,
-	)
-	if e != nil {
-		return
-	}
-
-	_, e = htpasswdFile.Write(htpasswdBytes)
-	if e != nil {
-		return
-	}
-
-	e = htpasswdFile.Close()
-	if e != nil {
-		return
-	}
-
-	configTemplate = fmt.Sprintf(configTemplateBasicAuth,
-		placeholder,
-		htpasswdFile.Name(),
-	)
-
-	r, e = newDockerRegistry(address, configTemplate)
-	if e != nil {
-		return
-	}
-
-	r.htpasswd = htpasswdFile
-
-	return
-}
-
-func newDockerRegistry(address net.TCPAddr, configTemplate string,
-) (
-	r *DockerRegistry, e error,
-) {
-	var (
-		config       *configuration.Configuration
-		configReader *strings.Reader
-		configString string
-
 		contextWithCancel context.Context
+		option            dockerRegistryOption
+		server            *registry.Registry
 	)
 
-	configString = fmt.Sprintf(configTemplate,
-		address.String(),
-	)
-
-	configReader = strings.NewReader(configString)
-
-	config, e = configuration.Parse(configReader)
-	if e != nil {
-		return
+	r = &DockerRegistry{
+		config: &configuration.Configuration{
+			Version: version,
+			Storage: make(map[string]configuration.Parameters),
+			Auth:    make(map[string]configuration.Parameters),
+		},
 	}
 
-	r = &DockerRegistry{}
+	r.config.HTTP.Addr = address.String()
+
+	r.config.Storage[storage] = configuration.Parameters{}
 
 	contextWithCancel, r.cancel = context.WithCancel(
 		context.Background(),
 	)
 
-	r.server, e = registry.NewRegistry(
-		contextWithCancel,
-		config,
-	)
+	for _, option = range options {
+		e = option(r)
+		if e != nil {
+			return
+		}
+	}
+
+	server, e = registry.NewRegistry(contextWithCancel, r.config)
 	if e != nil {
 		return
 	}
 
-	go r.server.ListenAndServe()
+	go server.ListenAndServe()
 
 	for {
 		_, e = net.Dial(
@@ -178,13 +85,52 @@ func newDockerRegistry(address net.TCPAddr, configTemplate string,
 func (r *DockerRegistry) Destroy() (e error) {
 	r.cancel()
 
-	if r.htpasswd != nil {
-		e = os.Remove(
-			r.htpasswd.Name(),
-		)
+	if r.passwd != nil {
+		e = r.passwd.Destroy()
 		if e != nil {
 			return
 		}
+	}
+
+	return
+}
+
+type dockerRegistryOption func(*DockerRegistry) error
+
+func WithBasicAuthentication(username, password string) (
+	option dockerRegistryOption,
+) {
+	const (
+		realmKey   = "realm"
+		realmValue = "basic"
+	)
+
+	option = func(r *DockerRegistry) (e error) {
+		r.passwd, e = hashes.NewHtpasswdFile(username, password)
+		if e != nil {
+			return
+		}
+
+		r.config.Auth[auth] = configuration.Parameters{
+			realmKey: realmValue,
+			pathKey:  r.passwd.Path(),
+		}
+
+		return
+	}
+
+	return
+}
+
+func WithTransportLayerSecurity(pathToCertPEM, pathToKeyPEM string) (
+	option dockerRegistryOption,
+) {
+	option = func(r *DockerRegistry) (e error) {
+		r.config.HTTP.TLS.Certificate = pathToCertPEM
+
+		r.config.HTTP.TLS.Key = pathToKeyPEM
+
+		return
 	}
 
 	return

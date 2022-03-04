@@ -22,22 +22,21 @@ type KubernetesDeployment struct {
 }
 
 func NewKubernetesDeployment(
-	name, serviceAccountName, kubeConfigPath string,
+	name, kubeconfigPath string, options ...kubernetesDeploymentOption,
 ) (
 	d *KubernetesDeployment, e error,
 ) {
 	const (
-		hostNetwork = true
-		masterURL   = ""
-		replicas    = 1
+		masterURL = ""
 	)
 
 	var (
 		clientset *kubernetes.Clientset
 		config    *rest.Config
+		option    kubernetesDeploymentOption
 	)
 
-	config, e = clientcmd.BuildConfigFromFlags(masterURL, kubeConfigPath)
+	config, e = clientcmd.BuildConfigFromFlags(masterURL, kubeconfigPath)
 	if e != nil {
 		return
 	}
@@ -48,7 +47,10 @@ func NewKubernetesDeployment(
 	}
 
 	d = &KubernetesDeployment{
-		deployments: clientset.AppsV1().Deployments(coreV1.NamespaceDefault),
+		deployments: clientset.AppsV1().Deployments(
+			coreV1.NamespaceDefault,
+		),
+
 		deployment: &appsV1.Deployment{
 			ObjectMeta: metaV1.ObjectMeta{
 				Name: name,
@@ -62,14 +64,19 @@ func NewKubernetesDeployment(
 						Labels: make(map[string]string),
 					},
 					Spec: coreV1.PodSpec{
-						Containers:         make([]coreV1.Container, 0),
-						ServiceAccountName: serviceAccountName,
-						HostNetwork:        hostNetwork,
+						Containers: make([]coreV1.Container, 0),
+						ImagePullSecrets: make([]coreV1.LocalObjectReference,
+							0,
+						),
 					},
 				},
 			},
 		},
-		services: clientset.CoreV1().Services(coreV1.NamespaceDefault),
+
+		services: clientset.CoreV1().Services(
+			coreV1.NamespaceDefault,
+		),
+
 		service: &coreV1.Service{
 			ObjectMeta: metaV1.ObjectMeta{
 				Name: name,
@@ -82,69 +89,13 @@ func NewKubernetesDeployment(
 		},
 	}
 
-	d.setReplicas(replicas)
+	for _, option = range options {
+		e = option(d)
+		if e != nil {
+			return
+		}
+	}
 
-	return
-}
-
-func (d *KubernetesDeployment) setReplicas(replicas int32) {
-	d.deployment.Spec.Replicas = &replicas
-
-	return
-}
-
-func (d *KubernetesDeployment) SetLabel(key, value string) {
-	d.deployment.Spec.Selector.MatchLabels[key] = value
-
-	d.deployment.Spec.Template.ObjectMeta.Labels[key] = value
-
-	d.service.Spec.Selector[key] = value
-
-	return
-}
-
-func (d *KubernetesDeployment) AddContainerWithoutPorts(name, imageRef string) {
-	d.deployment.Spec.Template.Spec.Containers = append(
-		d.deployment.Spec.Template.Spec.Containers,
-		coreV1.Container{
-			Name:  name,
-			Image: imageRef,
-		},
-	)
-
-	return
-}
-
-func (d *KubernetesDeployment) AddContainerWithSingleTCPPort(
-	name, imageRef string, port int32,
-) {
-	d.deployment.Spec.Template.Spec.Containers = append(
-		d.deployment.Spec.Template.Spec.Containers,
-		coreV1.Container{
-			Name:  name,
-			Image: imageRef,
-			Ports: []coreV1.ContainerPort{
-				{
-					HostPort:      port,
-					ContainerPort: port,
-				},
-			},
-		},
-	)
-
-	d.service.Spec.Ports = append(d.service.Spec.Ports,
-		coreV1.ServicePort{
-			Port: port,
-			TargetPort: intstr.FromInt(
-				int(port),
-			),
-		},
-	)
-
-	return
-}
-
-func (d *KubernetesDeployment) Create() (e error) {
 	d.deployment, e = d.deployments.Create(
 		context.Background(),
 		d.deployment,
@@ -163,6 +114,9 @@ func (d *KubernetesDeployment) Create() (e error) {
 		if e != nil {
 			return
 		}
+
+	} else {
+		d.service = nil
 	}
 
 	for d.deployment.Status.AvailableReplicas == 0 {
@@ -180,7 +134,11 @@ func (d *KubernetesDeployment) Create() (e error) {
 }
 
 func (d *KubernetesDeployment) IPAddress() (address string, e error) {
-	for d.service.Spec.ClusterIP == "" {
+	if d.service == nil {
+		return
+	}
+
+	for address == "" {
 		d.service, e = d.services.Get(
 			context.Background(),
 			d.service.GetObjectMeta().GetName(),
@@ -189,14 +147,14 @@ func (d *KubernetesDeployment) IPAddress() (address string, e error) {
 		if e != nil {
 			return
 		}
-	}
 
-	address = d.service.Spec.ClusterIP
+		address = d.service.Spec.ClusterIP
+	}
 
 	return
 }
 
-func (d *KubernetesDeployment) Delete() (e error) {
+func (d *KubernetesDeployment) Destroy() (e error) {
 	e = d.deployments.Delete(
 		context.Background(),
 		d.deployment.GetObjectMeta().GetName(),
@@ -206,12 +164,156 @@ func (d *KubernetesDeployment) Delete() (e error) {
 		return
 	}
 
-	e = d.services.Delete(
-		context.Background(),
-		d.service.GetObjectMeta().GetName(),
-		metaV1.DeleteOptions{},
+	if d.services != nil {
+		e = d.services.Delete(
+			context.Background(),
+			d.service.GetObjectMeta().GetName(),
+			metaV1.DeleteOptions{},
+		)
+		if e != nil {
+			return
+		}
+	}
+
+	return
+}
+
+type kubernetesDeploymentOption func(*KubernetesDeployment) error
+
+func WithReplicas(number int32) (option kubernetesDeploymentOption) {
+	option = func(d *KubernetesDeployment) (e error) {
+		d.deployment.Spec.Replicas = &number
+
+		return
+	}
+
+	return
+}
+
+func WithLabel(key, value string) (option kubernetesDeploymentOption) {
+	option = func(d *KubernetesDeployment) (e error) {
+		d.deployment.Spec.Selector.MatchLabels[key] = value
+
+		d.deployment.Spec.Template.ObjectMeta.Labels[key] = value
+
+		d.service.Spec.Selector[key] = value
+
+		return
+	}
+
+	return
+}
+
+func WithContainerWithoutPorts(name, imageRef string) (
+	option kubernetesDeploymentOption,
+) {
+	option = func(d *KubernetesDeployment) (e error) {
+		d.deployment.Spec.Template.Spec.Containers = append(
+			d.deployment.Spec.Template.Spec.Containers,
+			coreV1.Container{
+				Name:  name,
+				Image: imageRef,
+			},
+		)
+
+		return
+	}
+
+	return
+}
+
+func WithContainerWithTCPPorts(name, imageRef string, ports ...int32) (
+	option kubernetesDeploymentOption,
+) {
+	var (
+		container coreV1.Container
+		i         int
 	)
-	if e != nil {
+
+	container = coreV1.Container{
+		Name:  name,
+		Image: imageRef,
+		Ports: make([]coreV1.ContainerPort,
+			len(ports),
+		),
+	}
+
+	for i = 0; i < len(ports); i++ {
+		container.Ports[i] = coreV1.ContainerPort{
+			HostPort:      ports[i],
+			ContainerPort: ports[i],
+		}
+	}
+
+	option = func(d *KubernetesDeployment) (e error) {
+		d.deployment.Spec.Template.Spec.Containers = append(
+			d.deployment.Spec.Template.Spec.Containers,
+			container,
+		)
+
+		for i = 0; i < len(ports); i++ {
+			d.service.Spec.Ports = append(d.service.Spec.Ports,
+				coreV1.ServicePort{
+					Port: ports[i],
+					TargetPort: intstr.FromInt(
+						int(ports[i]),
+					),
+				},
+			)
+		}
+
+		return
+	}
+
+	return
+}
+
+func WithImagePullSecrets(names ...string) (option kubernetesDeploymentOption) {
+	var (
+		references []coreV1.LocalObjectReference
+		i          int
+	)
+
+	references = make([]coreV1.LocalObjectReference,
+		len(names),
+	)
+
+	for i = 0; i < len(names); i++ {
+		references[i] = coreV1.LocalObjectReference{
+			Name: names[i],
+		}
+	}
+
+	option = func(d *KubernetesDeployment) (e error) {
+		d.deployment.Spec.Template.Spec.ImagePullSecrets = append(
+			d.deployment.Spec.Template.Spec.ImagePullSecrets,
+			references...,
+		)
+
+		return
+	}
+
+	return
+}
+
+func WithServiceAccount(name string) (option kubernetesDeploymentOption) {
+	option = func(d *KubernetesDeployment) (e error) {
+		d.deployment.Spec.Template.Spec.ServiceAccountName = name
+
+		return
+	}
+
+	return
+}
+
+func WithHostNetwork() (option kubernetesDeploymentOption) {
+	const (
+		hostNetwork = true
+	)
+
+	option = func(d *KubernetesDeployment) (e error) {
+		d.deployment.Spec.Template.Spec.HostNetwork = hostNetwork
+
 		return
 	}
 

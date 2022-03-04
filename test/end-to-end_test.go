@@ -14,10 +14,12 @@ import (
 
 	"github.com/joel-ling/alduin/test/pkg/clients"
 	"github.com/joel-ling/alduin/test/pkg/clusters"
+	"github.com/joel-ling/alduin/test/pkg/credentials"
 	"github.com/joel-ling/alduin/test/pkg/deployments"
 	"github.com/joel-ling/alduin/test/pkg/images"
 	"github.com/joel-ling/alduin/test/pkg/permissions"
 	"github.com/joel-ling/alduin/test/pkg/repositories"
+	"github.com/joel-ling/alduin/test/pkg/secrets"
 )
 
 // As a Kubernetes administrator deploying container applications to a cluster,
@@ -33,19 +35,44 @@ func TestEndToEnd(t *testing.T) {
 	// Given there is a container image repository
 
 	const (
+		dockerHost = "172.17.0.1"
+		localhost  = "127.0.0.1"
+
 		repositoryPort = 5000
+
+		username = "username"
+		password = "password"
 	)
 
 	var (
+		credential *credentials.TLSCertificate
+
 		repository        *repositories.DockerRegistry
 		repositoryAddress net.TCPAddr
 	)
+
+	credential, e = credentials.NewTLSCertificate(
+		credentials.WithExtendedKeyUsageForServerAuth(),
+		credentials.WithIPAddress(localhost),
+		credentials.WithIPAddress(dockerHost),
+	)
+	if e != nil {
+		t.Error(e)
+	}
+
+	defer credential.Destroy()
 
 	repositoryAddress = net.TCPAddr{
 		Port: repositoryPort,
 	}
 
-	repository, e = repositories.NewDockerRegistry(repositoryAddress)
+	repository, e = repositories.NewDockerRegistry(repositoryAddress,
+		repositories.WithBasicAuthentication(username, password),
+		repositories.WithTransportLayerSecurity(
+			credential.PathToCertPEM(),
+			credential.PathToKeyPEM(),
+		),
+	)
 	if e != nil {
 		t.Error(e)
 	}
@@ -62,8 +89,6 @@ func TestEndToEnd(t *testing.T) {
 		dockerfilePath0  = "test/build/http-status-code-server/Dockerfile"
 		// relative to build context
 
-		localhost = "127.0.0.1"
-
 		imageName0     = "http-status-code-server"
 		imageRefFormat = "%s/%s"
 
@@ -75,8 +100,9 @@ func TestEndToEnd(t *testing.T) {
 	)
 
 	var (
-		image0    *images.DockerImage
-		imageRef0 string
+		image0                 *images.DockerImage
+		imageRef0              string
+		repositoryAddressLocal net.TCPAddr
 	)
 
 	image0, e = images.NewDockerImage(buildContextPath, dockerfilePath0)
@@ -84,10 +110,13 @@ func TestEndToEnd(t *testing.T) {
 		t.Error(e)
 	}
 
-	repositoryAddress.IP = net.ParseIP(localhost)
+	repositoryAddressLocal = net.TCPAddr{
+		IP:   net.ParseIP(localhost),
+		Port: repositoryPort,
+	}
 
 	imageRef0 = fmt.Sprintf(imageRefFormat,
-		repositoryAddress.String(),
+		repositoryAddressLocal.String(),
 		imageName0,
 	)
 
@@ -106,7 +135,7 @@ func TestEndToEnd(t *testing.T) {
 		t.Error(e)
 	}
 
-	e = image0.Push(os.Stderr)
+	e = image0.PushWithBasicAuth(os.Stderr, username, password)
 	if e != nil {
 		t.Error(e)
 	}
@@ -114,32 +143,23 @@ func TestEndToEnd(t *testing.T) {
 	// And there is a Kubernetes cluster
 
 	const (
-		// See https://pkg.go.dev/io/ioutil#TempFile
+		caCertsDir   = "/etc/ssl/certs/test.pem" // kindest/node based on Ubuntu
 		clusterName  = "test-cluster"
 		nodeImageRef = "kindest/node:v1.23.3"
-
-		dockerHost = "172.17.0.1"
 	)
 
 	var (
 		cluster *clusters.KindCluster
 	)
 
-	cluster, e = clusters.NewKindCluster(
-		nodeImageRef,
-		clusterName,
+	cluster, e = clusters.NewKindCluster(nodeImageRef, clusterName,
+		clusters.WithExtraMounts(
+			caCertsDir,
+			credential.PathToCertPEM(),
+		),
+		clusters.WithExtraPortMapping(serverPort),
 	)
-	if e != nil {
-		t.Error(e)
-	}
 
-	cluster.AddPortMapping(serverPort)
-
-	repositoryAddress.IP = net.ParseIP(dockerHost)
-
-	cluster.AddHTTPRegistryMirror(repositoryAddress)
-
-	e = cluster.Create()
 	if e != nil {
 		t.Error(e)
 	}
@@ -151,38 +171,54 @@ func TestEndToEnd(t *testing.T) {
 	// And the endpoint is exposed using a Kubernetes service
 
 	const (
-		serviceAccountName = ""
+		secretName = "docker-registry-secret"
 
 		deploymentLabelKey = "app"
 	)
 
 	var (
+		repositoryAddressDocker net.TCPAddr
+
+		secret *secrets.KubernetesDockerRegistrySecret
+
 		deployment0 *deployments.KubernetesDeployment
 	)
 
+	repositoryAddressDocker = net.TCPAddr{
+		IP:   net.ParseIP(dockerHost),
+		Port: repositoryPort,
+	}
+
+	secret, e = secrets.NewKubernetesDockerRegistrySecret(
+		cluster.KubeconfigPath(),
+		secretName,
+		repositoryAddressDocker.String(),
+		username,
+		password,
+	)
+	if e != nil {
+		t.Error(e)
+	}
+
+	defer secret.Destroy()
+
 	deployment0, e = deployments.NewKubernetesDeployment(
 		imageName0,
-		serviceAccountName,
 		cluster.KubeconfigPath(),
+		deployments.WithLabel(deploymentLabelKey, imageName0),
+		deployments.WithContainerWithTCPPorts(
+			imageName0,
+			strings.ReplaceAll(imageRef0, localhost, dockerHost),
+			serverPort,
+		),
+		deployments.WithImagePullSecrets(secretName),
+		deployments.WithHostNetwork(),
 	)
 	if e != nil {
 		t.Error(e)
 	}
 
-	deployment0.SetLabel(deploymentLabelKey, imageName0)
-
-	deployment0.AddContainerWithSingleTCPPort(
-		imageName0,
-		strings.ReplaceAll(imageRef0, localhost, dockerHost),
-		serverPort,
-	)
-
-	e = deployment0.Create()
-	if e != nil {
-		t.Error(e)
-	}
-
-	defer deployment0.Delete()
+	defer deployment0.Destroy()
 
 	const (
 		scheme   = "http"
@@ -235,10 +271,8 @@ func TestEndToEnd(t *testing.T) {
 		t.Error(e)
 	}
 
-	repositoryAddress.IP = net.ParseIP(localhost)
-
 	imageRef1 = fmt.Sprintf(imageRefFormat,
-		repositoryAddress.String(),
+		repositoryAddressLocal.String(),
 		imageName1,
 	)
 
@@ -249,7 +283,7 @@ func TestEndToEnd(t *testing.T) {
 		t.Error(e)
 	}
 
-	e = image1.Push(os.Stderr)
+	e = image1.PushWithBasicAuth(os.Stderr, username, password)
 	if e != nil {
 		t.Error(e)
 	}
@@ -272,20 +306,16 @@ func TestEndToEnd(t *testing.T) {
 	permission, e = permissions.NewKubernetesRole(
 		imageName1,
 		cluster.KubeconfigPath(),
+		permissions.WithPolicyRule(
+			[]string{verb0, verb1},
+			[]string{resource},
+		),
 	)
 	if e != nil {
 		t.Error(e)
 	}
 
-	permission.AddPolicyRule(
-		[]string{verb0, verb1},
-		[]string{resource},
-	)
-
-	e = permission.Create()
-	if e != nil {
-		t.Error(e)
-	}
+	defer permission.Destroy()
 
 	var (
 		deployment1 *deployments.KubernetesDeployment
@@ -293,26 +323,21 @@ func TestEndToEnd(t *testing.T) {
 
 	deployment1, e = deployments.NewKubernetesDeployment(
 		imageName1,
-		imageName1,
 		cluster.KubeconfigPath(),
+		deployments.WithLabel(deploymentLabelKey, imageName1),
+		deployments.WithContainerWithTCPPorts(
+			imageName1,
+			strings.ReplaceAll(imageRef1, localhost, dockerHost),
+		),
+		deployments.WithImagePullSecrets(secretName),
+		deployments.WithServiceAccount(imageName1),
+		deployments.WithHostNetwork(),
 	)
 	if e != nil {
 		t.Error(e)
 	}
 
-	deployment1.SetLabel(deploymentLabelKey, imageName1)
-
-	deployment1.AddContainerWithoutPorts(
-		imageName1,
-		strings.ReplaceAll(imageRef1, localhost, dockerHost),
-	)
-
-	e = deployment1.Create()
-	if e != nil {
-		t.Error(e)
-	}
-
-	defer deployment1.Delete()
+	defer deployment1.Destroy()
 
 	// When I rebuild the image so that it returns a different status code
 	// And I transfer to the new image the tag of the existing image
@@ -331,7 +356,7 @@ func TestEndToEnd(t *testing.T) {
 		t.Error(e)
 	}
 
-	e = image0.Push(os.Stderr)
+	e = image0.PushWithBasicAuth(os.Stderr, username, password)
 	if e != nil {
 		t.Error(e)
 	}

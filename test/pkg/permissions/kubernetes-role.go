@@ -22,7 +22,9 @@ type KubernetesRole struct {
 	roleBinding     *rbacV1.RoleBinding
 }
 
-func NewKubernetesRole(name, kubeConfigPath string) (
+func NewKubernetesRole(name, kubeConfigPath string,
+	options ...kubernetesRoleOption,
+) (
 	r *KubernetesRole, e error,
 ) {
 	const (
@@ -35,6 +37,7 @@ func NewKubernetesRole(name, kubeConfigPath string) (
 	var (
 		clientset *kubernetes.Clientset
 		config    *rest.Config
+		option    kubernetesRoleOption
 	)
 
 	config, e = clientcmd.BuildConfigFromFlags(masterURL, kubeConfigPath)
@@ -82,26 +85,13 @@ func NewKubernetesRole(name, kubeConfigPath string) (
 		},
 	}
 
-	return
-}
+	for _, option = range options {
+		e = option(r)
+		if e != nil {
+			return
+		}
+	}
 
-func (r *KubernetesRole) AddPolicyRule(verbs, resources []string) {
-	const (
-		apiGroup = "rbac.authorization.k8s.io"
-	)
-
-	r.role.Rules = append(r.role.Rules,
-		rbacV1.PolicyRule{
-			Verbs:     verbs,
-			APIGroups: []string{apiGroup},
-			Resources: resources,
-		},
-	)
-
-	return
-}
-
-func (r *KubernetesRole) Create() (e error) {
 	r.role, e = r.roles.Create(
 		context.Background(),
 		r.role,
@@ -126,6 +116,59 @@ func (r *KubernetesRole) Create() (e error) {
 		metaV1.CreateOptions{},
 	)
 	if e != nil {
+		return
+	}
+
+	return
+}
+
+func (r *KubernetesRole) Destroy() (e error) {
+	e = r.roles.Delete(
+		context.Background(),
+		r.role.GetObjectMeta().GetName(),
+		metaV1.DeleteOptions{},
+	)
+	if e != nil {
+		return
+	}
+
+	e = r.serviceAccounts.Delete(
+		context.Background(),
+		r.serviceAccount.GetObjectMeta().GetName(),
+		metaV1.DeleteOptions{},
+	)
+	if e != nil {
+		return
+	}
+
+	e = r.roleBindings.Delete(
+		context.Background(),
+		r.roleBinding.GetObjectMeta().GetName(),
+		metaV1.DeleteOptions{},
+	)
+	if e != nil {
+		return
+	}
+
+	return
+}
+
+type kubernetesRoleOption func(*KubernetesRole) error
+
+func WithPolicyRule(verbs, resources []string) (option kubernetesRoleOption) {
+	const (
+		apiGroup = "rbac.authorization.k8s.io"
+	)
+
+	option = func(r *KubernetesRole) (e error) {
+		r.role.Rules = append(r.role.Rules,
+			rbacV1.PolicyRule{
+				Verbs:     verbs,
+				APIGroups: []string{apiGroup},
+				Resources: resources,
+			},
+		)
+
 		return
 	}
 

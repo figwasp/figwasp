@@ -13,109 +13,127 @@ import (
 )
 
 type TLSCertificate struct {
-	privateKeyPEM  *os.File
-	certificatePEM *os.File
+	certTemplate *x509.Certificate
+
+	pathToCertPEM string
+	pathToKeyPEM  string
 }
 
-func NewTLSCertificateForIPAddress(ip net.IP) (c *TLSCertificate, e error) {
+func NewTLSCertificate(options ...tlsCertificateOption) (
+	c *TLSCertificate, e error,
+) {
 	const (
-		directory = ""
-		pattern   = "*"
-
-		certificateType = "CERTIFICATE"
-		privateKeyType  = "PRIVATE KEY"
-
-		filePermission = 0400
-
-		serialNumber = 1
+		tempFileDirectory = ""
+		tempFilePattern   = "*"
 
 		certValidDuration = time.Hour
+		serialNumber      = 1
+
+		certType = "CERTIFICATE"
+		keyType  = "PRIVATE KEY"
+
+		filePermission = 0400
 	)
 
 	var (
-		privateKey           ed25519.PrivateKey
-		privateKeyPEMBlock   *pem.Block
-		privateKeyPKCS8Bytes []byte
-		publicKey            ed25519.PublicKey
+		certPEM *os.File
+		keyPEM  *os.File
 
-		certificateBytes    []byte
-		certificatePEMBlock *pem.Block
-		certificateTemplate *x509.Certificate
+		option tlsCertificateOption
+
+		key           ed25519.PrivateKey
+		keyPEMBlock   *pem.Block
+		keyPKCS8Bytes []byte
+
+		publicKey ed25519.PublicKey
+
+		certBytes    []byte
+		certPEMBlock *pem.Block
 	)
 
-	publicKey, privateKey, e = ed25519.GenerateKey(rand.Reader)
+	keyPEM, e = ioutil.TempFile(tempFileDirectory, tempFilePattern)
 	if e != nil {
 		return
 	}
 
-	privateKeyPKCS8Bytes, e = x509.MarshalPKCS8PrivateKey(privateKey)
+	certPEM, e = ioutil.TempFile(tempFileDirectory, tempFilePattern)
 	if e != nil {
 		return
 	}
 
-	c = &TLSCertificate{}
+	c = &TLSCertificate{
+		certTemplate: &x509.Certificate{
+			SerialNumber: big.NewInt(serialNumber),
+			NotBefore:    time.Now(),
+			NotAfter:     time.Now().Add(certValidDuration),
+			KeyUsage:     x509.KeyUsageDigitalSignature,
+			ExtKeyUsage:  make([]x509.ExtKeyUsage, 0),
+			IPAddresses:  make([]net.IP, 0),
+		},
 
-	c.privateKeyPEM, e = ioutil.TempFile(directory, pattern)
+		pathToCertPEM: certPEM.Name(),
+		pathToKeyPEM:  keyPEM.Name(),
+	}
+
+	for _, option = range options {
+		e = option(c)
+		if e != nil {
+			return
+		}
+	}
+
+	publicKey, key, e = ed25519.GenerateKey(rand.Reader)
 	if e != nil {
 		return
 	}
 
-	privateKeyPEMBlock = &pem.Block{
-		Type:  privateKeyType,
-		Bytes: privateKeyPKCS8Bytes,
-	}
-
-	e = pem.Encode(c.privateKeyPEM, privateKeyPEMBlock)
+	keyPKCS8Bytes, e = x509.MarshalPKCS8PrivateKey(key)
 	if e != nil {
 		return
 	}
 
-	e = c.privateKeyPEM.Chmod(filePermission)
+	keyPEMBlock = &pem.Block{
+		Type:  keyType,
+		Bytes: keyPKCS8Bytes,
+	}
+
+	e = pem.Encode(keyPEM, keyPEMBlock)
 	if e != nil {
 		return
 	}
 
-	e = c.privateKeyPEM.Close()
+	e = keyPEM.Chmod(filePermission)
 	if e != nil {
 		return
 	}
 
-	certificateTemplate = &x509.Certificate{
-		SerialNumber: big.NewInt(serialNumber),
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().Add(certValidDuration),
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		IPAddresses:  []net.IP{ip},
+	e = keyPEM.Close()
+	if e != nil {
+		return
 	}
 
-	certificateBytes, e = x509.CreateCertificate(
+	certBytes, e = x509.CreateCertificate(
 		rand.Reader,
-		certificateTemplate,
-		certificateTemplate,
+		c.certTemplate,
+		c.certTemplate,
 		publicKey,
-		privateKey,
+		key,
 	)
 	if e != nil {
 		return
 	}
 
-	c.certificatePEM, e = ioutil.TempFile(directory, pattern)
+	certPEMBlock = &pem.Block{
+		Type:  certType,
+		Bytes: certBytes,
+	}
+
+	e = pem.Encode(certPEM, certPEMBlock)
 	if e != nil {
 		return
 	}
 
-	certificatePEMBlock = &pem.Block{
-		Type:  certificateType,
-		Bytes: certificateBytes,
-	}
-
-	e = pem.Encode(c.certificatePEM, certificatePEMBlock)
-	if e != nil {
-		return
-	}
-
-	e = c.certificatePEM.Close()
+	e = certPEM.Close()
 	if e != nil {
 		return
 	}
@@ -123,26 +141,48 @@ func NewTLSCertificateForIPAddress(ip net.IP) (c *TLSCertificate, e error) {
 	return
 }
 
-func (c *TLSCertificate) PathToCertificatePEM() string {
-	return c.certificatePEM.Name()
+func (c *TLSCertificate) PathToCertPEM() string {
+	return c.pathToCertPEM
 }
 
-func (c *TLSCertificate) PathToPrivateKeyPEM() string {
-	return c.privateKeyPEM.Name()
+func (c *TLSCertificate) PathToKeyPEM() string {
+	return c.pathToKeyPEM
 }
 
-func (c *TLSCertificate) Remove() (e error) {
-	e = os.Remove(
-		c.privateKeyPEM.Name(),
-	)
+func (c *TLSCertificate) Destroy() (e error) {
+	e = os.Remove(c.pathToCertPEM)
 	if e != nil {
 		return
 	}
 
-	e = os.Remove(
-		c.certificatePEM.Name(),
-	)
+	e = os.Remove(c.pathToKeyPEM)
 	if e != nil {
+		return
+	}
+
+	return
+}
+
+type tlsCertificateOption func(*TLSCertificate) error
+
+func WithExtendedKeyUsageForServerAuth() (option tlsCertificateOption) {
+	option = func(c *TLSCertificate) (e error) {
+		c.certTemplate.ExtKeyUsage = append(c.certTemplate.ExtKeyUsage,
+			x509.ExtKeyUsageServerAuth,
+		)
+
+		return
+	}
+
+	return
+}
+
+func WithIPAddress(address string) (option tlsCertificateOption) {
+	option = func(c *TLSCertificate) (e error) {
+		c.certTemplate.IPAddresses = append(c.certTemplate.IPAddresses,
+			net.ParseIP(address),
+		)
+
 		return
 	}
 

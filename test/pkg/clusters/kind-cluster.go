@@ -2,9 +2,7 @@ package clusters
 
 import (
 	_ "embed"
-	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 
 	"sigs.k8s.io/kind/pkg/apis/config/v1alpha4"
@@ -14,107 +12,69 @@ import (
 )
 
 var (
-	//go:embed containerd-config-patch.toml
-	containerdConfigPatchTemplate string
+	kindClusterProvider *cluster.Provider
 )
 
-type KindCluster struct {
-	provider       *cluster.Provider
-	nodeImageRef   string
-	name           string
-	config         *v1alpha4.Cluster
-	kubeconfigPath string
-}
-
-func NewKindCluster(nodeImageRef, name string) (
-	c *KindCluster, e error,
-) {
-	const (
-		// See https://pkg.go.dev/io/ioutil#TempFile
-		kubeconfigDirectory = ""
-		kubeconfigFilename  = "*"
-	)
-
+func init() {
 	var (
-		kubeconfigFile *os.File
 		logger         log.Logger
 		providerOption cluster.ProviderOption
 	)
-
-	kubeconfigFile, e = ioutil.TempFile(
-		kubeconfigDirectory,
-		kubeconfigFilename,
-	)
-	if e != nil {
-		return
-	}
 
 	logger = cmd.NewLogger()
 
 	providerOption = cluster.ProviderWithLogger(logger)
 
-	c = &KindCluster{
-		provider:     cluster.NewProvider(providerOption),
-		nodeImageRef: nodeImageRef,
-		name:         name,
-		config: &v1alpha4.Cluster{
-			Nodes: []v1alpha4.Node{
-				{
-					Role:              v1alpha4.ControlPlaneRole,
-					ExtraPortMappings: make([]v1alpha4.PortMapping, 0),
-				},
-			},
-			ContainerdConfigPatches: make([]string, 0),
-		},
-		kubeconfigPath: kubeconfigFile.Name(),
+	kindClusterProvider = cluster.NewProvider(providerOption)
+}
+
+type KindCluster struct {
+	name           string
+	kubeconfigPath string
+	config         *v1alpha4.Cluster
+}
+
+func NewKindCluster(nodeImageRef, name string, options ...kindClusterOption) (
+	c *KindCluster, e error,
+) {
+	const (
+		tempFileDirectory = ""
+		tempFilePattern   = "*"
+	)
+
+	var (
+		kubeconfigFile *os.File
+		option         kindClusterOption
+	)
+
+	kubeconfigFile, e = ioutil.TempFile(tempFileDirectory, tempFilePattern)
+	if e != nil {
+		return
 	}
 
-	return
-}
+	c = &KindCluster{
+		name:           name,
+		kubeconfigPath: kubeconfigFile.Name(),
+		config:         new(v1alpha4.Cluster),
+	}
 
-func (c *KindCluster) KubeconfigPath() string {
-	return c.kubeconfigPath
-}
-
-func (c *KindCluster) AddPortMapping(port int32) {
-	// https://kind.sigs.k8s.io/docs/user/quick-start/
-	//  #mapping-ports-to-the-host-machine
-
-	const (
-		controlPlaneNodeIndex = 0
-	)
-
-	c.config.Nodes[controlPlaneNodeIndex].ExtraPortMappings = append(
-		c.config.Nodes[controlPlaneNodeIndex].ExtraPortMappings,
-		v1alpha4.PortMapping{
-			ContainerPort: port,
-			HostPort:      port,
+	c.config.Nodes = []v1alpha4.Node{
+		{
+			Role:              v1alpha4.ControlPlaneRole,
+			ExtraMounts:       make([]v1alpha4.Mount, 0),
+			ExtraPortMappings: make([]v1alpha4.PortMapping, 0),
 		},
-	)
+	}
 
-	return
-}
+	for _, option = range options {
+		e = option(c)
+		if e != nil {
+			return
+		}
+	}
 
-func (c *KindCluster) AddHTTPRegistryMirror(address net.TCPAddr) {
-	var (
-		patch string
-	)
-
-	patch = fmt.Sprintf(containerdConfigPatchTemplate,
-		address.String(),
-		address.String(),
-	)
-
-	c.config.ContainerdConfigPatches = append(c.config.ContainerdConfigPatches,
-		patch,
-	)
-
-	return
-}
-
-func (c *KindCluster) Create() (e error) {
-	e = c.provider.Create(c.name,
-		cluster.CreateWithNodeImage(c.nodeImageRef),
+	e = kindClusterProvider.Create(name,
+		cluster.CreateWithNodeImage(nodeImageRef),
 		cluster.CreateWithKubeconfigPath(c.kubeconfigPath),
 		cluster.CreateWithV1Alpha4Config(c.config),
 	)
@@ -125,8 +85,12 @@ func (c *KindCluster) Create() (e error) {
 	return
 }
 
+func (c *KindCluster) KubeconfigPath() string {
+	return c.kubeconfigPath
+}
+
 func (c *KindCluster) Destroy() (e error) {
-	e = c.provider.Delete(
+	e = kindClusterProvider.Delete(
 		c.name,
 		c.kubeconfigPath,
 	)
@@ -136,6 +100,64 @@ func (c *KindCluster) Destroy() (e error) {
 
 	e = os.Remove(c.kubeconfigPath)
 	if e != nil {
+		return
+	}
+
+	return
+}
+
+type kindClusterOption func(*KindCluster) error
+
+func WithExtraMounts(containerPath, hostPath string) (
+	option kindClusterOption,
+) {
+	const (
+		nodeIndex = 0
+		readonly  = true
+	)
+
+	var (
+		mount v1alpha4.Mount
+	)
+
+	mount = v1alpha4.Mount{
+		ContainerPath: containerPath,
+		HostPath:      hostPath,
+		Readonly:      readonly,
+	}
+
+	option = func(c *KindCluster) (e error) {
+		c.config.Nodes[nodeIndex].ExtraMounts = append(
+			c.config.Nodes[nodeIndex].ExtraMounts,
+			mount,
+		)
+
+		return
+	}
+
+	return
+}
+
+func WithExtraPortMapping(port int32) (option kindClusterOption) {
+	const (
+		nodeIndex = 0
+	)
+
+	var (
+		portMapping v1alpha4.PortMapping
+	)
+
+	portMapping = v1alpha4.PortMapping{
+		ContainerPort: port,
+		HostPort:      port,
+	}
+
+	option = func(c *KindCluster) (e error) {
+		c.config.Nodes[nodeIndex].ExtraPortMappings = append(
+			c.config.Nodes[nodeIndex].ExtraPortMappings,
+			portMapping,
+		)
+
 		return
 	}
 
