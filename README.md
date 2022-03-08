@@ -8,23 +8,15 @@ Feature: Alduin
 
     Scenario:
         Given there is a container image repository
-        And in the repository there is an image of a container
-        And the container is a HTTP server with a GET endpoint
-        And the endpoint responds to requests with a fixed HTTP status code
-        And the status code is preset via a container image build argument
+        And in the repository there is an image of a server
         And there is a Kubernetes cluster
-        And the server is deployed to the cluster using a Kubernetes deployment
-        And the image of the server is pulled from the repository
-        And the endpoint is exposed using a Kubernetes service
-        And Alduin is running in the cluster
-        And Alduin is authenticated as a Kubernetes service account
-        And the service account is authorised to get and patch deployments
+        And the server is deployed to the cluster by means of a Deployment
+        And Alduin is running in the cluster with the relevant permissions
 
-        When I rebuild the image so that it returns a different status code
-        And I transfer to the new image the tag of the existing image
-        And I push the new image to the repository
+        When I rebuild the server image so that it behaves differently
+        And I push the new image to the repository with the same tag as the old
         And I allow time for a rolling restart of the deployment to complete
-        And I send a request to the endpoint
+        And I send a request to the server and receive a response
 
-        Then I should see in the response to the request the new status code
+        Then I should observe in the response evidence of the new behaviour
 ```
