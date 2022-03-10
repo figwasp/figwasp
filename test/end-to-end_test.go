@@ -144,7 +144,7 @@ func TestEndToEnd(t *testing.T) {
 
 	const (
 		caCertsDir   = "/etc/ssl/certs/test.pem" // kindest/node based on Ubuntu
-		clusterName  = "test-cluster"
+		clusterName  = "end-to-end-test-cluster"
 		nodeImageRef = "kindest/node:v1.23.3"
 	)
 
