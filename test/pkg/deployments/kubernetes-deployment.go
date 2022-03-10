@@ -164,7 +164,7 @@ func (d *KubernetesDeployment) Destroy() (e error) {
 		return
 	}
 
-	if d.services != nil {
+	if d.service != nil {
 		e = d.services.Delete(
 			context.Background(),
 			d.service.GetObjectMeta().GetName(),
