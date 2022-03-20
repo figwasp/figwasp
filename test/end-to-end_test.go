@@ -90,7 +90,7 @@ func TestEndToEnd(t *testing.T) {
 		// relative to build context
 
 		imageName0     = "http-status-code-server"
-		imageRefFormat = "%s/%s"
+		imageRefFormat = "%s/%s:latest"
 
 		serverPort    = 30000
 		serverPortKey = "SERVER_PORT"
@@ -282,9 +282,17 @@ func TestEndToEnd(t *testing.T) {
 	}
 
 	const (
-		resource = "deployments"
-		verb0    = "get"
-		verb1    = "patch"
+		apiGroup0 = ""
+		apiGroup1 = "apps"
+		resource0 = "deployments"
+		resource1 = "replicasets"
+		resource2 = "pods"
+		resource3 = "secrets"
+		verb0     = "get"
+		verb1     = "update"
+		verb2     = "list"
+
+		volumeName = "ca-certs"
 	)
 
 	var (
@@ -296,7 +304,23 @@ func TestEndToEnd(t *testing.T) {
 		cluster.KubeconfigPath(),
 		permissions.WithPolicyRule(
 			[]string{verb0, verb1},
-			[]string{resource},
+			[]string{apiGroup1},
+			[]string{resource0},
+		),
+		permissions.WithPolicyRule(
+			[]string{verb2},
+			[]string{apiGroup1},
+			[]string{resource1},
+		),
+		permissions.WithPolicyRule(
+			[]string{verb2},
+			[]string{apiGroup0},
+			[]string{resource2},
+		),
+		permissions.WithPolicyRule(
+			[]string{verb2},
+			[]string{apiGroup0},
+			[]string{resource3},
 		),
 	)
 	if e != nil {
@@ -319,6 +343,12 @@ func TestEndToEnd(t *testing.T) {
 		),
 		deployments.WithImagePullSecrets(secretName),
 		deployments.WithServiceAccount(imageName1),
+		deployments.WithHostPathVolume(
+			volumeName,
+			caCertsDir,
+			caCertsDir,
+			imageName1,
+		),
 	)
 	if e != nil {
 		t.Error(e)
@@ -364,7 +394,7 @@ func TestEndToEnd(t *testing.T) {
 	// Then I should see in the response to the request the new status code
 
 	const (
-		timeout1 = time.Minute
+		timeout1 = 3 * time.Minute
 	)
 
 	assert.Eventually(t,
