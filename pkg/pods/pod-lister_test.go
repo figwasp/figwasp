@@ -190,12 +190,12 @@ func TestPodLister(t *testing.T) {
 		t.Error(e)
 	}
 
-	lister, e = NewPodLister(config, v1.NamespaceDefault)
+	lister, e = NewDeploymentPodLister(config, v1.NamespaceDefault)
 	if e != nil {
 		t.Error(e)
 	}
 
-	pods, e = lister.ListPodsControlledByDeployment(deploymentName0,
+	pods, e = lister.ListPods(deploymentName0,
 		context.Background(),
 	)
 	if e != nil {
@@ -207,7 +207,7 @@ func TestPodLister(t *testing.T) {
 		len(pods),
 	)
 
-	pods, e = lister.ListPodsControlledByDeployment(deploymentName1,
+	pods, e = lister.ListPods(deploymentName1,
 		context.Background(),
 	)
 	if e != nil {

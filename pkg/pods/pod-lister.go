@@ -13,19 +13,17 @@ import (
 )
 
 type PodLister interface {
-	ListPodsControlledByDeployment(string, context.Context) (
-		[]coreV1.Pod, error,
-	)
+	ListPods(string, context.Context) ([]coreV1.Pod, error)
 }
 
-type podLister struct {
+type deploymentPodLister struct {
 	deployments typedAppsV1.DeploymentInterface
 	replicaSets typedAppsV1.ReplicaSetInterface
 	pods        typedCoreV1.PodInterface
 }
 
-func NewPodLister(config *rest.Config, namespace string) (
-	l *podLister, e error,
+func NewDeploymentPodLister(config *rest.Config, namespace string) (
+	l *deploymentPodLister, e error,
 ) {
 	var (
 		clientset *kubernetes.Clientset
@@ -36,7 +34,7 @@ func NewPodLister(config *rest.Config, namespace string) (
 		return
 	}
 
-	l = &podLister{
+	l = &deploymentPodLister{
 		deployments: clientset.AppsV1().Deployments(namespace),
 		replicaSets: clientset.AppsV1().ReplicaSets(namespace),
 		pods:        clientset.CoreV1().Pods(namespace),
@@ -45,7 +43,7 @@ func NewPodLister(config *rest.Config, namespace string) (
 	return
 }
 
-func (l *podLister) ListPodsControlledByDeployment(
+func (l *deploymentPodLister) ListPods(
 	deploymentName string, ctx context.Context,
 ) (
 	pods []coreV1.Pod, e error,
