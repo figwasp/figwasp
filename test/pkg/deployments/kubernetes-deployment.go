@@ -133,27 +133,6 @@ func NewKubernetesDeployment(
 	return
 }
 
-func (d *KubernetesDeployment) IPAddress() (address string, e error) {
-	if d.service == nil {
-		return
-	}
-
-	for address == "" {
-		d.service, e = d.services.Get(
-			context.Background(),
-			d.service.GetObjectMeta().GetName(),
-			metaV1.GetOptions{},
-		)
-		if e != nil {
-			return
-		}
-
-		address = d.service.Spec.ClusterIP
-	}
-
-	return
-}
-
 func (d *KubernetesDeployment) Destroy() (e error) {
 	e = d.deployments.Delete(
 		context.Background(),
@@ -240,7 +219,6 @@ func WithContainerWithTCPPorts(name, imageRef string, ports ...int32) (
 
 	for i = 0; i < len(ports); i++ {
 		container.Ports[i] = coreV1.ContainerPort{
-			HostPort:      ports[i],
 			ContainerPort: ports[i],
 		}
 	}
@@ -258,6 +236,7 @@ func WithContainerWithTCPPorts(name, imageRef string, ports ...int32) (
 					TargetPort: intstr.FromInt(
 						int(ports[i]),
 					),
+					NodePort: ports[i],
 				},
 			)
 		}
@@ -299,20 +278,6 @@ func WithImagePullSecrets(names ...string) (option kubernetesDeploymentOption) {
 func WithServiceAccount(name string) (option kubernetesDeploymentOption) {
 	option = func(d *KubernetesDeployment) (e error) {
 		d.deployment.Spec.Template.Spec.ServiceAccountName = name
-
-		return
-	}
-
-	return
-}
-
-func WithHostNetwork() (option kubernetesDeploymentOption) {
-	const (
-		hostNetwork = true
-	)
-
-	option = func(d *KubernetesDeployment) (e error) {
-		d.deployment.Spec.Template.Spec.HostNetwork = hostNetwork
 
 		return
 	}

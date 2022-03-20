@@ -92,7 +92,7 @@ func TestEndToEnd(t *testing.T) {
 		imageName0     = "http-status-code-server"
 		imageRefFormat = "%s/%s"
 
-		serverPort    = 8000
+		serverPort    = 30000
 		serverPortKey = "SERVER_PORT"
 
 		statusCode0   = http.StatusNoContent
@@ -208,7 +208,6 @@ func TestEndToEnd(t *testing.T) {
 			serverPort,
 		),
 		deployments.WithImagePullSecrets(secretName),
-		deployments.WithHostNetwork(),
 	)
 	if e != nil {
 		t.Error(e)
@@ -320,7 +319,6 @@ func TestEndToEnd(t *testing.T) {
 		),
 		deployments.WithImagePullSecrets(secretName),
 		deployments.WithServiceAccount(imageName1),
-		deployments.WithHostNetwork(),
 	)
 	if e != nil {
 		t.Error(e)
