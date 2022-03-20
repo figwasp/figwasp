@@ -262,17 +262,12 @@ func TestEndToEnd(t *testing.T) {
 		imageRef1 string
 	)
 
-	image1, e = images.NewDockerImage(buildContextPath, dockerfilePath1)
-	if e != nil {
-		t.Error(e)
-	}
-
 	imageRef1 = fmt.Sprintf(imageRefFormat,
 		repositoryAddressLocal.String(),
 		imageName1,
 	)
 
-	image1, e = images.NewDockerImage(buildContextPath, dockerfilePath0,
+	image1, e = images.NewDockerImage(buildContextPath, dockerfilePath1,
 		images.WithTag(imageRef1),
 		images.WithOutputStream(os.Stderr),
 	)
