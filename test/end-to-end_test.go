@@ -105,11 +105,6 @@ func TestEndToEnd(t *testing.T) {
 		repositoryAddressLocal net.TCPAddr
 	)
 
-	image0, e = images.NewDockerImage(buildContextPath, dockerfilePath0)
-	if e != nil {
-		t.Error(e)
-	}
-
 	repositoryAddressLocal = net.TCPAddr{
 		IP:   net.ParseIP(localhost),
 		Port: repositoryPort,
@@ -120,20 +115,21 @@ func TestEndToEnd(t *testing.T) {
 		imageName0,
 	)
 
-	image0.SetTag(imageRef0)
-
-	image0.SetBuildArg(serverPortKey,
-		fmt.Sprint(serverPort),
+	image0, e = images.NewDockerImage(buildContextPath, dockerfilePath0,
+		images.WithTag(imageRef0),
+		images.WithBuildArg(serverPortKey,
+			fmt.Sprint(serverPort),
+		),
+		images.WithBuildArg(statusCodeKey,
+			fmt.Sprint(statusCode0),
+		),
+		images.WithOutputStream(os.Stderr),
 	)
-
-	image0.SetBuildArg(statusCodeKey,
-		fmt.Sprint(statusCode0),
-	)
-
-	e = image0.Build(os.Stderr)
 	if e != nil {
 		t.Error(e)
 	}
+
+	defer image0.Destroy()
 
 	e = image0.PushWithBasicAuth(os.Stderr, username, password)
 	if e != nil {
@@ -276,19 +272,17 @@ func TestEndToEnd(t *testing.T) {
 		imageName1,
 	)
 
-	image1.SetTag(imageRef1)
-
-	e = image1.Build(os.Stderr)
+	image1, e = images.NewDockerImage(buildContextPath, dockerfilePath0,
+		images.WithTag(imageRef1),
+		images.WithOutputStream(os.Stderr),
+	)
 	if e != nil {
 		t.Error(e)
 	}
+
+	defer image1.Destroy()
 
 	e = image1.PushWithBasicAuth(os.Stderr, username, password)
-	if e != nil {
-		t.Error(e)
-	}
-
-	e = image1.Remove()
 	if e != nil {
 		t.Error(e)
 	}
@@ -347,21 +341,27 @@ func TestEndToEnd(t *testing.T) {
 		statusCode1 = http.StatusTeapot
 	)
 
-	image0.SetBuildArg(statusCodeKey,
-		fmt.Sprint(statusCode1),
+	var (
+		image2 *images.DockerImage
 	)
 
-	e = image0.Build(os.Stderr)
+	image2, e = images.NewDockerImage(buildContextPath, dockerfilePath0,
+		images.WithTag(imageRef0),
+		images.WithBuildArg(serverPortKey,
+			fmt.Sprint(serverPort),
+		),
+		images.WithBuildArg(statusCodeKey,
+			fmt.Sprint(statusCode1),
+		),
+		images.WithOutputStream(os.Stderr),
+	)
 	if e != nil {
 		t.Error(e)
 	}
 
-	e = image0.PushWithBasicAuth(os.Stderr, username, password)
-	if e != nil {
-		t.Error(e)
-	}
+	defer image2.Destroy()
 
-	e = image0.Remove()
+	e = image2.PushWithBasicAuth(os.Stderr, username, password)
 	if e != nil {
 		t.Error(e)
 	}

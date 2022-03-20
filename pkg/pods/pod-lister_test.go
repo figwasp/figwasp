@@ -81,11 +81,6 @@ func TestPodLister(t *testing.T) {
 		repositoryAddressLocal net.TCPAddr
 	)
 
-	image, e = images.NewDockerImage(buildContextPath, dockerfilePath)
-	if e != nil {
-		t.Error(e)
-	}
-
 	repositoryAddressLocal = net.TCPAddr{
 		IP:   net.ParseIP(localhost),
 		Port: repositoryPort,
@@ -96,12 +91,15 @@ func TestPodLister(t *testing.T) {
 		imageName,
 	)
 
-	image.SetTag(imageRef)
-
-	e = image.Build(os.Stderr)
+	image, e = images.NewDockerImage(buildContextPath, dockerfilePath,
+		images.WithTag(imageRef),
+		images.WithOutputStream(os.Stderr),
+	)
 	if e != nil {
 		t.Error(e)
 	}
+
+	defer image.Destroy()
 
 	e = image.Push(os.Stderr)
 	if e != nil {

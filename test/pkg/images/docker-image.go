@@ -15,17 +15,25 @@ type DockerImage struct {
 	dockerClient *client.Client
 	buildContext io.ReadCloser
 	buildOptions types.ImageBuildOptions
+	outputStream io.Writer
 }
 
-func NewDockerImage(buildContextPath, dockerfilePath string) (
+func NewDockerImage(
+	buildContextPath, dockerfilePath string, options ...dockerImageOption,
+) (
 	i *DockerImage, e error,
 ) {
+	var (
+		option dockerImageOption
+	)
+
 	i = &DockerImage{
 		buildOptions: types.ImageBuildOptions{
 			Tags:       make([]string, 0),
 			Dockerfile: dockerfilePath,
 			BuildArgs:  make(map[string]*string),
 		},
+		outputStream: io.Discard,
 	}
 
 	i.dockerClient, e = client.NewClientWithOpts()
@@ -40,22 +48,22 @@ func NewDockerImage(buildContextPath, dockerfilePath string) (
 		return
 	}
 
+	for _, option = range options {
+		e = option(i)
+		if e != nil {
+			return
+		}
+	}
+
+	e = i.build()
+	if e != nil {
+		return
+	}
+
 	return
 }
 
-func (i *DockerImage) SetTag(tag string) {
-	i.buildOptions.Tags = append(i.buildOptions.Tags, tag)
-
-	return
-}
-
-func (i *DockerImage) SetBuildArg(key, value string) {
-	i.buildOptions.BuildArgs[key] = &value
-
-	return
-}
-
-func (i *DockerImage) Build(stream io.Writer) (e error) {
+func (i *DockerImage) build() (e error) {
 	var (
 		response types.ImageBuildResponse
 	)
@@ -71,7 +79,7 @@ func (i *DockerImage) Build(stream io.Writer) (e error) {
 
 	defer response.Body.Close()
 
-	_, e = io.Copy(stream, response.Body)
+	_, e = io.Copy(i.outputStream, response.Body)
 	if e != nil {
 		return
 	}
@@ -148,7 +156,7 @@ func (i *DockerImage) push(stream io.Writer, registryAuth string) (e error) {
 	return
 }
 
-func (i *DockerImage) Remove() (e error) {
+func (i *DockerImage) Destroy() (e error) {
 	var (
 		j int
 	)
@@ -162,6 +170,38 @@ func (i *DockerImage) Remove() (e error) {
 		if e != nil {
 			return
 		}
+	}
+
+	return
+}
+
+type dockerImageOption func(*DockerImage) error
+
+func WithTag(tag string) (option dockerImageOption) {
+	option = func(i *DockerImage) (e error) {
+		i.buildOptions.Tags = append(i.buildOptions.Tags, tag)
+
+		return
+	}
+
+	return
+}
+
+func WithBuildArg(key, value string) (option dockerImageOption) {
+	option = func(i *DockerImage) (e error) {
+		i.buildOptions.BuildArgs[key] = &value
+
+		return
+	}
+
+	return
+}
+
+func WithOutputStream(writer io.Writer) (option dockerImageOption) {
+	option = func(i *DockerImage) (e error) {
+		i.outputStream = writer
+
+		return
 	}
 
 	return
