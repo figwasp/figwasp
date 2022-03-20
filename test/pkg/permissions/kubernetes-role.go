@@ -155,16 +155,14 @@ func (r *KubernetesRole) Destroy() (e error) {
 
 type kubernetesRoleOption func(*KubernetesRole) error
 
-func WithPolicyRule(verbs, resources []string) (option kubernetesRoleOption) {
-	const (
-		apiGroup = "rbac.authorization.k8s.io"
-	)
-
+func WithPolicyRule(verbs, apiGroups, resources []string) (
+	option kubernetesRoleOption,
+) {
 	option = func(r *KubernetesRole) (e error) {
 		r.role.Rules = append(r.role.Rules,
 			rbacV1.PolicyRule{
 				Verbs:     verbs,
-				APIGroups: []string{apiGroup},
+				APIGroups: apiGroups,
 				Resources: resources,
 			},
 		)
