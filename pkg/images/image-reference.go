@@ -19,9 +19,16 @@ type imageReference struct {
 func NewImageReferenceFromCanonicalString(s string) (
 	r *imageReference, e error,
 ) {
+	const (
+		defaultTag = "latest"
+	)
+
 	var (
 		named       reference.Named
 		namedTagged reference.NamedTagged
+		ok          bool
+		tag         string
+		tagged      reference.Tagged
 	)
 
 	named, e = reference.ParseNamed(s)
@@ -29,9 +36,18 @@ func NewImageReferenceFromCanonicalString(s string) (
 		return
 	}
 
+	tagged, ok = named.(reference.Tagged)
+
+	if ok {
+		tag = tagged.Tag()
+
+	} else {
+		tag = defaultTag
+	}
+
 	namedTagged, e = reference.WithTag(
-		reference.TrimNamed(named),     // remove digest and tag
-		named.(reference.Tagged).Tag(), // recover tag
+		reference.TrimNamed(named), // remove digest and tag
+		tag,                        // recover tag
 	)
 	if e != nil {
 		return
