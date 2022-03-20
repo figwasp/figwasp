@@ -8,14 +8,12 @@ import (
 
 func TestImageReference(t *testing.T) {
 	const (
-		canonicalString = "docker.io/library/busybox:latest" +
-			"@sha256:" +
-			"7cc4b5aefd1d0cadf8d97d4350462ba51c694ebca145b08d7d41b41acc8db5aa"
-
 		repositoryAddress = "docker.io"
-		namedAndTagged    = "docker.io/library/busybox:latest"
+		namedAndTagged    = repositoryAddress + "/library/busybox:latest"
 		imageDigest       = "sha256:" +
 			"7cc4b5aefd1d0cadf8d97d4350462ba51c694ebca145b08d7d41b41acc8db5aa"
+
+		canonicalString = namedAndTagged + "@" + imageDigest
 	)
 
 	var (
