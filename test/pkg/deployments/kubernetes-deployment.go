@@ -183,24 +183,6 @@ func WithLabel(key, value string) (option kubernetesDeploymentOption) {
 	return
 }
 
-func WithContainerWithoutPorts(name, imageRef string) (
-	option kubernetesDeploymentOption,
-) {
-	option = func(d *KubernetesDeployment) (e error) {
-		d.deployment.Spec.Template.Spec.Containers = append(
-			d.deployment.Spec.Template.Spec.Containers,
-			coreV1.Container{
-				Name:  name,
-				Image: imageRef,
-			},
-		)
-
-		return
-	}
-
-	return
-}
-
 func WithContainerWithTCPPorts(name, imageRef string, ports ...int32) (
 	option kubernetesDeploymentOption,
 ) {
@@ -278,6 +260,56 @@ func WithImagePullSecrets(names ...string) (option kubernetesDeploymentOption) {
 func WithServiceAccount(name string) (option kubernetesDeploymentOption) {
 	option = func(d *KubernetesDeployment) (e error) {
 		d.deployment.Spec.Template.Spec.ServiceAccountName = name
+
+		return
+	}
+
+	return
+}
+
+func WithHostPathVolume(name, hostPath, mountPath, containerName string,
+) (
+	option kubernetesDeploymentOption,
+) {
+	const (
+		readOnly = true
+	)
+
+	var (
+		container *coreV1.Container
+		i         int
+	)
+
+	option = func(d *KubernetesDeployment) (e error) {
+		d.deployment.Spec.Template.Spec.Volumes = append(
+			d.deployment.Spec.Template.Spec.Volumes,
+			coreV1.Volume{
+				Name: name,
+				VolumeSource: coreV1.VolumeSource{
+					HostPath: &coreV1.HostPathVolumeSource{
+						Path: hostPath,
+					},
+				},
+			},
+		)
+
+		for i = 0; i < len(d.deployment.Spec.Template.Spec.Containers); i++ {
+			container = &(d.deployment.Spec.Template.Spec.Containers[i])
+
+			if container.Name != containerName {
+				continue
+			}
+
+			container.VolumeMounts = append(container.VolumeMounts,
+				coreV1.VolumeMount{
+					Name:      name,
+					ReadOnly:  readOnly,
+					MountPath: mountPath,
+				},
+			)
+
+			break
+		}
 
 		return
 	}
