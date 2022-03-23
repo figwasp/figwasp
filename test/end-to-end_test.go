@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -27,6 +26,18 @@ import (
 // whenever the tag of a currently-deployed image is inherited by another image
 // so that the deployment is always up-to-date without manual intervention.
 
+const (
+	dockerHost = "172.17.0.1"
+	localhost  = "127.0.0.1"
+
+	buildContextPath = ".."
+	imageRefFormat   = "%s/%s:latest"
+
+	serverPort = 30000
+
+	deploymentLabelKey = "app"
+)
+
 func TestEndToEnd(t *testing.T) {
 	var (
 		e error
@@ -34,45 +45,11 @@ func TestEndToEnd(t *testing.T) {
 
 	// Given there is a container image repository
 
-	const (
-		dockerHost = "172.17.0.1"
-		localhost  = "127.0.0.1"
-
-		repositoryPort = 5000
-
-		username = "username"
-		password = "password"
-	)
-
 	var (
-		credential *credentials.TLSCertificate
-
-		repository        *repositories.DockerRegistry
-		repositoryAddress net.TCPAddr
+		repository *containerImageRepository
 	)
 
-	credential, e = credentials.NewTLSCertificate(
-		credentials.WithExtendedKeyUsageForServerAuth(),
-		credentials.WithIPAddress(localhost),
-		credentials.WithIPAddress(dockerHost),
-	)
-	if e != nil {
-		t.Error(e)
-	}
-
-	defer credential.Destroy()
-
-	repositoryAddress = net.TCPAddr{
-		Port: repositoryPort,
-	}
-
-	repository, e = repositories.NewDockerRegistry(repositoryAddress,
-		repositories.WithBasicAuthentication(username, password),
-		repositories.WithTransportLayerSecurity(
-			credential.PathToCertPEM(),
-			credential.PathToKeyPEM(),
-		),
-	)
+	repository, e = thereIsAContainerImageRepository()
 	if e != nil {
 		t.Error(e)
 	}
@@ -85,77 +62,25 @@ func TestEndToEnd(t *testing.T) {
 	// And the status code is preset via a container image build argument
 
 	const (
-		buildContextPath = ".."
-		dockerfilePath0  = "test/build/http-status-code-server/Dockerfile"
-		// relative to build context
-
-		imageName0     = "http-status-code-server"
-		imageRefFormat = "%s/%s:latest"
-
-		serverPort    = 30000
-		serverPortKey = "SERVER_PORT"
-
-		statusCode0   = http.StatusNoContent
-		statusCodeKey = "STATUS_CODE"
+		statusCode0 = http.StatusNoContent
 	)
 
 	var (
-		image0                 *images.DockerImage
-		imageRef0              string
-		repositoryAddressLocal net.TCPAddr
+		image *containerImageOfAServer
 	)
 
-	repositoryAddressLocal = net.TCPAddr{
-		IP:   net.ParseIP(localhost),
-		Port: repositoryPort,
-	}
-
-	imageRef0 = fmt.Sprintf(imageRefFormat,
-		repositoryAddressLocal.String(),
-		imageName0,
-	)
-
-	image0, e = images.NewDockerImage(buildContextPath, dockerfilePath0,
-		images.WithTag(imageRef0),
-		images.WithBuildArg(serverPortKey,
-			fmt.Sprint(serverPort),
-		),
-		images.WithBuildArg(statusCodeKey,
-			fmt.Sprint(statusCode0),
-		),
-		images.WithOutputStream(os.Stderr),
-	)
-	if e != nil {
-		t.Error(e)
-	}
-
-	defer image0.Destroy()
-
-	e = image0.PushWithBasicAuth(os.Stderr, username, password)
+	image, e = thereIsAContainerImageOfAServer(repository, statusCode0)
 	if e != nil {
 		t.Error(e)
 	}
 
 	// And there is a Kubernetes cluster
 
-	const (
-		caCertsDir   = "/etc/ssl/certs/test.pem" // kindest/node based on Ubuntu
-		clusterName  = "end-to-end-test-cluster"
-		nodeImageRef = "kindest/node:v1.23.3"
-	)
-
 	var (
-		cluster *clusters.KindCluster
+		cluster *kubernetesCluster
 	)
 
-	cluster, e = clusters.NewKindCluster(nodeImageRef, clusterName,
-		clusters.WithExtraMounts(
-			caCertsDir,
-			credential.PathToCertPEM(),
-		),
-		clusters.WithExtraPortMapping(serverPort),
-	)
-
+	cluster, e = thereIsAKubernetesCluster(repository)
 	if e != nil {
 		t.Error(e)
 	}
@@ -166,55 +91,18 @@ func TestEndToEnd(t *testing.T) {
 	// And the image of the server is pulled from the repository
 	// And the endpoint is exposed using a Kubernetes service
 
-	const (
-		secretName = "docker-registry-secret"
-
-		deploymentLabelKey = "app"
-	)
-
 	var (
-		repositoryAddressDocker net.TCPAddr
-
-		secret *secrets.KubernetesDockerRegistrySecret
-
-		deployment0 *deployments.KubernetesDeployment
+		deployment *deployments.KubernetesDeployment
 	)
 
-	repositoryAddressDocker = net.TCPAddr{
-		IP:   net.ParseIP(dockerHost),
-		Port: repositoryPort,
-	}
-
-	secret, e = secrets.NewKubernetesDockerRegistrySecret(
-		cluster.KubeconfigPath(),
-		secretName,
-		repositoryAddressDocker.String(),
-		username,
-		password,
-	)
+	deployment, e = thereIsAKubernetesDeployment(cluster, image)
 	if e != nil {
 		t.Error(e)
 	}
 
-	defer secret.Destroy()
+	defer deployment.Destroy()
 
-	deployment0, e = deployments.NewKubernetesDeployment(
-		imageName0,
-		cluster.KubeconfigPath(),
-		deployments.WithLabel(deploymentLabelKey, imageName0),
-		deployments.WithContainerWithTCPPorts(
-			imageName0,
-			strings.ReplaceAll(imageRef0, localhost, dockerHost),
-			serverPort,
-		),
-		deployments.WithImagePullSecrets(secretName),
-	)
-	if e != nil {
-		t.Error(e)
-	}
-
-	defer deployment0.Destroy()
-
+	/// TODO ///
 	const (
 		scheme   = "http"
 		timeout0 = time.Second
@@ -245,116 +133,22 @@ func TestEndToEnd(t *testing.T) {
 	}
 
 	assert.EqualValues(t, statusCode0, status)
+	/// TODO ///
 
 	// And Alduin is running in the cluster
 	// And Alduin is authenticated as a Kubernetes service account
 	// And the service account is authorised to get and patch deployments
 
-	const (
-		dockerfilePath1 = ""
-
-		imageName1 = "alduin"
-	)
-
 	var (
-		image1    *images.DockerImage
-		imageRef1 string
+		alduin *alduinInAPod
 	)
 
-	imageRef1 = fmt.Sprintf(imageRefFormat,
-		repositoryAddressLocal.String(),
-		imageName1,
-	)
-
-	image1, e = images.NewDockerImage(buildContextPath, dockerfilePath1,
-		images.WithTag(imageRef1),
-		images.WithOutputStream(os.Stderr),
-	)
+	alduin, e = alduinIsRunningInAPod(cluster, repository)
 	if e != nil {
-		t.Error(e)
+		return
 	}
 
-	defer image1.Destroy()
-
-	e = image1.PushWithBasicAuth(os.Stderr, username, password)
-	if e != nil {
-		t.Error(e)
-	}
-
-	const (
-		apiGroup0 = ""
-		apiGroup1 = "apps"
-		resource0 = "deployments"
-		resource1 = "replicasets"
-		resource2 = "pods"
-		resource3 = "secrets"
-		verb0     = "get"
-		verb1     = "update"
-		verb2     = "list"
-
-		volumeName = "ca-certs"
-	)
-
-	var (
-		permission *permissions.KubernetesRole
-	)
-
-	permission, e = permissions.NewKubernetesRole(
-		imageName1,
-		cluster.KubeconfigPath(),
-		permissions.WithPolicyRule(
-			[]string{verb0, verb1},
-			[]string{apiGroup1},
-			[]string{resource0},
-		),
-		permissions.WithPolicyRule(
-			[]string{verb2},
-			[]string{apiGroup1},
-			[]string{resource1},
-		),
-		permissions.WithPolicyRule(
-			[]string{verb2},
-			[]string{apiGroup0},
-			[]string{resource2},
-		),
-		permissions.WithPolicyRule(
-			[]string{verb2},
-			[]string{apiGroup0},
-			[]string{resource3},
-		),
-	)
-	if e != nil {
-		t.Error(e)
-	}
-
-	defer permission.Destroy()
-
-	var (
-		deployment1 *deployments.KubernetesDeployment
-	)
-
-	deployment1, e = deployments.NewKubernetesDeployment(
-		imageName1,
-		cluster.KubeconfigPath(),
-		deployments.WithLabel(deploymentLabelKey, imageName1),
-		deployments.WithContainerWithTCPPorts(
-			imageName1,
-			strings.ReplaceAll(imageRef1, localhost, dockerHost),
-		),
-		deployments.WithImagePullSecrets(secretName),
-		deployments.WithServiceAccount(imageName1),
-		deployments.WithHostPathVolume(
-			volumeName,
-			caCertsDir,
-			caCertsDir,
-			imageName1,
-		),
-	)
-	if e != nil {
-		t.Error(e)
-	}
-
-	defer deployment1.Destroy()
+	defer alduin.Destroy()
 
 	// When I rebuild the image so that it returns a different status code
 	// And I transfer to the new image the tag of the existing image
@@ -364,27 +158,7 @@ func TestEndToEnd(t *testing.T) {
 		statusCode1 = http.StatusTeapot
 	)
 
-	var (
-		image2 *images.DockerImage
-	)
-
-	image2, e = images.NewDockerImage(buildContextPath, dockerfilePath0,
-		images.WithTag(imageRef0),
-		images.WithBuildArg(serverPortKey,
-			fmt.Sprint(serverPort),
-		),
-		images.WithBuildArg(statusCodeKey,
-			fmt.Sprint(statusCode1),
-		),
-		images.WithOutputStream(os.Stderr),
-	)
-	if e != nil {
-		t.Error(e)
-	}
-
-	defer image2.Destroy()
-
-	e = image2.PushWithBasicAuth(os.Stderr, username, password)
+	_, e = thereIsAContainerImageOfAServer(repository, statusCode1)
 	if e != nil {
 		t.Error(e)
 	}
@@ -409,4 +183,441 @@ func TestEndToEnd(t *testing.T) {
 		timeout1,
 		timeout0,
 	)
+}
+
+type containerImageRepository struct {
+	credential *credentials.TLSCertificate
+	repository *repositories.DockerRegistry
+
+	addressListen net.TCPAddr
+	addressDocker net.TCPAddr
+	addressLocal  net.TCPAddr
+}
+
+func thereIsAContainerImageRepository() (r *containerImageRepository, e error) {
+	const (
+		port = 5000
+	)
+
+	r = &containerImageRepository{
+		addressListen: net.TCPAddr{
+			Port: port,
+		},
+		addressDocker: net.TCPAddr{
+			IP:   net.ParseIP(dockerHost),
+			Port: port,
+		},
+		addressLocal: net.TCPAddr{
+			IP:   net.ParseIP(localhost),
+			Port: port,
+		},
+	}
+
+	r.credential, e = credentials.NewTLSCertificate(
+		credentials.WithExtendedKeyUsageForServerAuth(),
+		credentials.WithIPAddress(localhost),
+		credentials.WithIPAddress(dockerHost),
+	)
+	if e != nil {
+		return
+	}
+
+	r.repository, e = repositories.NewDockerRegistry(
+		r.addressListen,
+		repositories.WithBasicAuthentication(
+			r.Username(),
+			r.Password(),
+		),
+		repositories.WithTransportLayerSecurity(
+			r.credential.PathToCertPEM(),
+			r.credential.PathToKeyPEM(),
+		),
+	)
+	if e != nil {
+		return
+	}
+
+	return
+}
+
+func (r *containerImageRepository) AddressDocker() string {
+	return r.addressDocker.String()
+}
+
+func (r *containerImageRepository) AddressLocal() string {
+	return r.addressLocal.String()
+}
+
+func (r *containerImageRepository) Credential() *credentials.TLSCertificate {
+	return r.credential
+}
+
+func (r *containerImageRepository) Username() string {
+	return "username"
+}
+
+func (r *containerImageRepository) Password() string {
+	return "password"
+}
+
+func (r *containerImageRepository) Destroy() (e error) {
+	e = r.credential.Destroy()
+	if e != nil {
+		return
+	}
+
+	e = r.repository.Destroy()
+	if e != nil {
+		return
+	}
+
+	return
+}
+
+type containerImage struct {
+	imageRefDocker string
+	imageRefLocal  string
+}
+
+func (i *containerImage) ImageRefDocker() string {
+	return i.imageRefDocker
+}
+
+func (i *containerImage) ImageRefLocal() string {
+	return i.imageRefLocal
+}
+
+type containerImageOfAServer struct {
+	containerImage
+	statusCode int
+}
+
+func thereIsAContainerImageOfAServer(
+	repository *containerImageRepository, statusCode int,
+) (
+	i *containerImageOfAServer, e error,
+) {
+	const (
+		dockerfilePath = "test/build/http-status-code-server/Dockerfile"
+		// relative to build context
+
+		serverPortKey = "SERVER_PORT"
+		statusCodeKey = "STATUS_CODE"
+	)
+
+	var (
+		image *images.DockerImage
+	)
+
+	i = &containerImageOfAServer{
+		containerImage: containerImage{
+			imageRefDocker: fmt.Sprintf(imageRefFormat,
+				repository.AddressDocker(),
+				i.ImageName(),
+			),
+			imageRefLocal: fmt.Sprintf(imageRefFormat,
+				repository.AddressLocal(),
+				i.ImageName(),
+			),
+		},
+	}
+
+	image, e = images.NewDockerImage(buildContextPath, dockerfilePath,
+		images.WithTag(i.imageRefLocal),
+		images.WithBuildArg(serverPortKey,
+			fmt.Sprint(serverPort),
+		),
+		images.WithBuildArg(statusCodeKey,
+			fmt.Sprint(statusCode),
+		),
+		images.WithOutputStream(os.Stderr),
+	)
+	if e != nil {
+		return
+	}
+
+	e = image.PushWithBasicAuth(
+		os.Stderr,
+		repository.Username(),
+		repository.Password(),
+	)
+	if e != nil {
+		return
+	}
+
+	e = image.Destroy()
+	if e != nil {
+		return
+	}
+
+	return
+}
+
+func (i *containerImageOfAServer) ImageName() string {
+	return "http-status-code-server"
+}
+
+func (i *containerImageOfAServer) StatusCode() int {
+	return i.statusCode
+}
+
+type containerImageOfAlduin struct {
+	containerImage
+}
+
+func thereIsAContainerImageOfAlduin(repository *containerImageRepository) (
+	i *containerImageOfAlduin, e error,
+) {
+	const (
+		dockerfilePath = ""
+	)
+
+	var (
+		image *images.DockerImage
+	)
+
+	i = &containerImageOfAlduin{
+		containerImage: containerImage{
+			imageRefDocker: fmt.Sprintf(imageRefFormat,
+				repository.AddressDocker(),
+				i.ImageName(),
+			),
+			imageRefLocal: fmt.Sprintf(imageRefFormat,
+				repository.AddressLocal(),
+				i.ImageName(),
+			),
+		},
+	}
+
+	image, e = images.NewDockerImage(buildContextPath, dockerfilePath,
+		images.WithTag(i.imageRefLocal),
+		images.WithOutputStream(os.Stderr),
+	)
+	if e != nil {
+		return
+	}
+
+	e = image.PushWithBasicAuth(
+		os.Stderr,
+		repository.Username(),
+		repository.Password(),
+	)
+	if e != nil {
+		return
+	}
+
+	e = image.Destroy()
+	if e != nil {
+		return
+	}
+
+	return
+}
+
+func (i *containerImageOfAlduin) ImageName() string {
+	return "alduin"
+}
+
+type kubernetesCluster struct {
+	cluster *clusters.KindCluster
+	secret  *secrets.KubernetesDockerRegistrySecret
+}
+
+func thereIsAKubernetesCluster(repository *containerImageRepository) (
+	c *kubernetesCluster, e error,
+) {
+	const (
+		clusterName  = "end-to-end-test-cluster"
+		nodeImageRef = "kindest/node:v1.23.3"
+	)
+
+	c = &kubernetesCluster{}
+
+	c.cluster, e = clusters.NewKindCluster(nodeImageRef, clusterName,
+		clusters.WithExtraMounts(
+			c.NodeCACertsDir(),
+			repository.Credential().PathToCertPEM(),
+		),
+		clusters.WithExtraPortMapping(
+			serverPort,
+		),
+	)
+	if e != nil {
+		return
+	}
+
+	c.secret, e = secrets.NewKubernetesDockerRegistrySecret(
+		c.cluster.KubeconfigPath(),
+		c.DockerRegistrySecretName(),
+		repository.AddressDocker(),
+		repository.Username(),
+		repository.Password(),
+	)
+	if e != nil {
+		return
+	}
+
+	return
+}
+
+func (c *kubernetesCluster) DockerRegistrySecretName() string {
+	return "docker-registry-secret"
+}
+
+func (c *kubernetesCluster) KubeconfigPath() string {
+	return c.cluster.KubeconfigPath()
+}
+
+func (c *kubernetesCluster) NodeCACertsDir() string {
+	return "/etc/ssl/certs/test.pem" // image "kindest/node" is based on Ubuntu
+}
+
+func (c *kubernetesCluster) Destroy() (e error) {
+	e = c.secret.Destroy()
+	if e != nil {
+		return
+	}
+
+	e = c.cluster.Destroy()
+	if e != nil {
+		return
+	}
+
+	return
+}
+
+func thereIsAKubernetesDeployment(
+	cluster *kubernetesCluster, image *containerImageOfAServer,
+) (
+	d *deployments.KubernetesDeployment, e error,
+) {
+	d, e = deployments.NewKubernetesDeployment(
+		image.ImageName(),
+		cluster.KubeconfigPath(),
+		deployments.WithLabel(
+			deploymentLabelKey,
+			image.ImageName(),
+		),
+		deployments.WithContainerWithTCPPorts(
+			image.ImageName(),
+			image.ImageRefDocker(),
+			serverPort,
+		),
+		deployments.WithImagePullSecrets(
+			cluster.DockerRegistrySecretName(),
+		),
+	)
+	if e != nil {
+		return
+	}
+
+	return
+}
+
+type alduinInAPod struct {
+	deployment *deployments.KubernetesDeployment
+	permission *permissions.KubernetesRole
+}
+
+func alduinIsRunningInAPod(
+	cluster *kubernetesCluster, repository *containerImageRepository,
+) (
+	a *alduinInAPod, e error,
+) {
+	const (
+		apiGroup0 = ""
+		apiGroup1 = "apps"
+		resource0 = "deployments"
+		resource1 = "replicasets"
+		resource2 = "pods"
+		resource3 = "secrets"
+		verb0     = "get"
+		verb1     = "update"
+		verb2     = "list"
+
+		volumeName = "ca-certs"
+	)
+
+	var (
+		image *containerImageOfAlduin
+	)
+
+	a = &alduinInAPod{}
+
+	image, e = thereIsAContainerImageOfAlduin(repository)
+	if e != nil {
+		return
+	}
+
+	a.permission, e = permissions.NewKubernetesRole(
+		image.ImageName(),
+		cluster.KubeconfigPath(),
+		permissions.WithPolicyRule(
+			[]string{verb0, verb1},
+			[]string{apiGroup1},
+			[]string{resource0},
+		),
+		permissions.WithPolicyRule(
+			[]string{verb2},
+			[]string{apiGroup1},
+			[]string{resource1},
+		),
+		permissions.WithPolicyRule(
+			[]string{verb2},
+			[]string{apiGroup0},
+			[]string{resource2},
+		),
+		permissions.WithPolicyRule(
+			[]string{verb2},
+			[]string{apiGroup0},
+			[]string{resource3},
+		),
+	)
+	if e != nil {
+		return
+	}
+
+	a.deployment, e = deployments.NewKubernetesDeployment(
+		image.ImageName(),
+		cluster.KubeconfigPath(),
+		deployments.WithLabel(
+			deploymentLabelKey,
+			image.ImageName(),
+		),
+		deployments.WithContainerWithTCPPorts(
+			image.ImageName(),
+			image.ImageRefDocker(),
+		),
+		deployments.WithImagePullSecrets(
+			cluster.DockerRegistrySecretName(),
+		),
+		deployments.WithServiceAccount(
+			image.ImageName(),
+		),
+		deployments.WithHostPathVolume(
+			volumeName,
+			cluster.NodeCACertsDir(),
+			cluster.NodeCACertsDir(),
+			image.ImageName(),
+		),
+	)
+	if e != nil {
+		return
+	}
+
+	return
+}
+
+func (a *alduinInAPod) Destroy() (e error) {
+	e = a.deployment.Destroy()
+	if e != nil {
+		return
+	}
+
+	e = a.permission.Destroy()
+	if e != nil {
+		return
+	}
+
+	return
 }
