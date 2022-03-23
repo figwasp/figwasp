@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -145,7 +146,7 @@ func TestEndToEnd(t *testing.T) {
 
 	alduin, e = alduinIsRunningInAPod(cluster, repository)
 	if e != nil {
-		return
+		t.Error(e)
 	}
 
 	defer alduin.Destroy()
@@ -369,12 +370,23 @@ func thereIsAContainerImageOfAlduin(repository *containerImageRepository) (
 	i *containerImageOfAlduin, e error,
 ) {
 	const (
-		dockerfilePath = ""
+		commandArg0    = "-c"
+		commandArg1    = "CGO_ENABLED=0 GOOS=linux go build -o bin/alduin ../cmd/alduin"
+		commandName    = "bash"
+		dockerfilePath = "test/build/alduin/Dockerfile"
 	)
 
 	var (
-		image *images.DockerImage
+		command *exec.Cmd
+		image   *images.DockerImage
 	)
+
+	command = exec.Command(commandName, commandArg0, commandArg1)
+
+	e = command.Run()
+	if e != nil {
+		return
+	}
 
 	i = &containerImageOfAlduin{
 		containerImage: containerImage{

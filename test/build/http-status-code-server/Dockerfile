@@ -27,9 +27,9 @@ FROM alpine:latest
 
 WORKDIR /root
 
-COPY --from=0 /usr/bin/$BINARY_NAME .
-
 ARG BINARY_NAME=http-status-code-server
+
+COPY --from=0 /usr/bin/$BINARY_NAME .
 
 ENV BINARY_NAME=$BINARY_NAME
 
