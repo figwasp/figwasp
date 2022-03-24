@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"log"
+	"time"
 
+	"github.com/caarlos0/env/v6"
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
 
@@ -14,12 +16,21 @@ import (
 	"github.com/figwasp/figwasp/pkg/secrets"
 )
 
+type environmentVariables struct {
+	Deployment string        `env:"FIGWASP_TARGET_DEPLOYMENT,notEmpty"`
+	Namespace  string        `env:"FIGWASP_TARGET_NAMESPACE"`
+	Timeout    time.Duration `env:"FIGWASP_API_CLIENT_TIMEOUT"`
+}
+
 func main() {
 	const (
-		deploymentName = "http-status-code-server" //TODO
+		timeoutDefault = time.Second * 30
 	)
 
 	var (
+		background context.Context
+		envVars    environmentVariables
+
 		config *rest.Config
 		ctx    context.Context
 
@@ -43,7 +54,17 @@ func main() {
 		e error
 	)
 
-	ctx = context.Background() //TODO
+	envVars = environmentVariables{
+		Namespace: v1.NamespaceDefault,
+		Timeout:   timeoutDefault,
+	}
+
+	e = env.Parse(&envVars)
+	if e != nil {
+		log.Fatalln(e)
+	}
+
+	background = context.Background()
 
 	config, e = rest.InClusterConfig()
 	if e != nil {
@@ -52,18 +73,20 @@ func main() {
 
 	restarter, e = deployments.NewDeploymentRolloutRestarter(
 		config,
-		v1.NamespaceDefault,
+		envVars.Namespace,
 	)
 	if e != nil {
 		log.Fatalln(e)
 	}
 
-	podLister, e = pods.NewDeploymentPodLister(config, v1.NamespaceDefault)
+	podLister, e = pods.NewDeploymentPodLister(config, envVars.Namespace)
 	if e != nil {
 		log.Fatalln(e)
 	}
 
-	podList, e = podLister.ListPods(deploymentName, ctx)
+	ctx, _ = context.WithTimeout(background, envVars.Timeout)
+
+	podList, e = podLister.ListPods(envVars.Deployment, ctx)
 	if e != nil {
 		log.Fatalln(e)
 	}
@@ -75,10 +98,12 @@ func main() {
 
 	refList = refLister.ListImageReferences()
 
-	secretLister, e = secrets.NewSecretLister(config, v1.NamespaceDefault)
+	secretLister, e = secrets.NewSecretLister(config, envVars.Namespace)
 	if e != nil {
 		log.Fatalln(e)
 	}
+
+	ctx, _ = context.WithTimeout(background, envVars.Timeout)
 
 	secretList, e = secretLister.ListSecrets(ctx)
 	if e != nil {
@@ -118,6 +143,8 @@ func main() {
 	for _, reference = range refList {
 		retriever = retrievers[reference.RepositoryAddress()]
 
+		ctx, _ = context.WithTimeout(background, envVars.Timeout)
+
 		digest, e = retriever.RetrieveImageDigest(
 			reference.NamedAndTagged(),
 			ctx,
@@ -127,7 +154,9 @@ func main() {
 		}
 
 		if digest != reference.ImageDigest() {
-			e = restarter.RolloutRestart(deploymentName, ctx)
+			ctx, _ = context.WithTimeout(background, envVars.Timeout)
+
+			e = restarter.RolloutRestart(envVars.Deployment, ctx)
 			if e != nil {
 				log.Fatalln(e)
 			}

@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	"fmt"
 
 	batchV1 "k8s.io/api/batch/v1"
 	coreV1 "k8s.io/api/core/v1"
@@ -131,25 +132,37 @@ func WithLabel(key, value string) (option kubernetesJobOption) {
 	return
 }
 
-func WithContainerWithTCPPorts(name, imageRef string, ports ...int32) (
+func WithContainerWithEnvVars(name, imageRef string, envVars ...string) (
 	option kubernetesJobOption,
 ) {
+	const (
+		envVarFormat = "%s %s"
+	)
+
 	var (
 		container coreV1.Container
-		i         int
+
+		i int
+
+		key   string
+		value string
 	)
 
 	container = coreV1.Container{
 		Name:  name,
 		Image: imageRef,
-		Ports: make([]coreV1.ContainerPort,
-			len(ports),
+		Env: make([]coreV1.EnvVar,
+			len(envVars),
 		),
 	}
 
-	for i = 0; i < len(ports); i++ {
-		container.Ports[i] = coreV1.ContainerPort{
-			ContainerPort: ports[i],
+	for i = 0; i < len(envVars); i++ {
+		fmt.Sscanf(envVars[i], envVarFormat, &key, &value)
+		// XXX: error not handled, only for use in testing
+
+		container.Env[i] = coreV1.EnvVar{
+			Name:  key,
+			Value: value,
 		}
 	}
 

@@ -557,6 +557,8 @@ func figwaspIsRunningInAPod(
 		verb1     = "update"
 		verb2     = "list"
 
+		envVar = "FIGWASP_TARGET_DEPLOYMENT http-status-code-server"
+
 		volumeName = "ca-certs"
 	)
 
@@ -606,9 +608,10 @@ func figwaspIsRunningInAPod(
 			deploymentLabelKey,
 			image.ImageName(),
 		),
-		jobs.WithContainerWithTCPPorts(
+		jobs.WithContainerWithEnvVars(
 			image.ImageName(),
 			image.ImageRefDocker(),
+			envVar,
 		),
 		jobs.WithImagePullSecrets(
 			cluster.DockerRegistrySecretName(),
