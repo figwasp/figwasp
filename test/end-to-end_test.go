@@ -17,6 +17,7 @@ import (
 	"github.com/joel-ling/alduin/test/pkg/credentials"
 	"github.com/joel-ling/alduin/test/pkg/deployments"
 	"github.com/joel-ling/alduin/test/pkg/images"
+	"github.com/joel-ling/alduin/test/pkg/jobs"
 	"github.com/joel-ling/alduin/test/pkg/permissions"
 	"github.com/joel-ling/alduin/test/pkg/repositories"
 	"github.com/joel-ling/alduin/test/pkg/secrets"
@@ -37,18 +38,31 @@ const (
 	serverPort = 30000
 
 	deploymentLabelKey = "app"
+
+	timeout0 = time.Second
+	timeout1 = time.Minute
 )
 
 func TestEndToEnd(t *testing.T) {
+	const (
+		statusCode0 = http.StatusNoContent
+		statusCode1 = http.StatusTeapot
+	)
+
 	var (
+		alduin     *alduinInAPod
+		client     *client
+		cluster    *kubernetesCluster
+		deployment *deployments.KubernetesDeployment
+		image      *containerImageOfAServer
+		repository *containerImageRepository
+
+		status int
+
 		e error
 	)
 
 	// Given there is a container image repository
-
-	var (
-		repository *containerImageRepository
-	)
 
 	repository, e = thereIsAContainerImageRepository()
 	if e != nil {
@@ -57,18 +71,7 @@ func TestEndToEnd(t *testing.T) {
 
 	defer repository.Destroy()
 
-	// And in the repository there is an image of a container
-	// And the container is a HTTP server with a GET endpoint
-	// And the endpoint responds to requests with a fixed HTTP status code
-	// And the status code is preset via a container image build argument
-
-	const (
-		statusCode0 = http.StatusNoContent
-	)
-
-	var (
-		image *containerImageOfAServer
-	)
+	// And (in the repository) there is a container image of a server
 
 	image, e = thereIsAContainerImageOfAServer(repository, statusCode0)
 	if e != nil {
@@ -77,10 +80,6 @@ func TestEndToEnd(t *testing.T) {
 
 	// And there is a Kubernetes cluster
 
-	var (
-		cluster *kubernetesCluster
-	)
-
 	cluster, e = thereIsAKubernetesCluster(repository)
 	if e != nil {
 		t.Error(e)
@@ -88,13 +87,7 @@ func TestEndToEnd(t *testing.T) {
 
 	defer cluster.Destroy()
 
-	// And the server is deployed to the cluster using a Kubernetes deployment
-	// And the image of the server is pulled from the repository
-	// And the endpoint is exposed using a Kubernetes service
-
-	var (
-		deployment *deployments.KubernetesDeployment
-	)
+	// And (in the cluster) there is a Kubernetes Deployment (of that server)
 
 	deployment, e = thereIsAKubernetesDeployment(cluster, image)
 	if e != nil {
@@ -103,46 +96,28 @@ func TestEndToEnd(t *testing.T) {
 
 	defer deployment.Destroy()
 
-	/// TODO ///
-	const (
-		scheme   = "http"
-		timeout0 = time.Second
-	)
+	// And there is a client (to the server obtaining its response to a request)
 
-	var (
-		client        *clients.HTTPClient
-		endpoint      url.URL
-		serverAddress net.TCPAddr
-		status        int
-	)
-
-	client, e = clients.NewHTTPClient()
+	client, e = thereIsAClient()
 	if e != nil {
 		t.Error(e)
 	}
 
-	serverAddress.Port = serverPort
-
-	endpoint = url.URL{
-		Scheme: scheme,
-		Host:   serverAddress.String(),
-	}
-
-	status, e = client.GetStatusCodeFromEndpoint(endpoint, timeout0)
+	status, e = client.ObtainServerResponse()
 	if e != nil {
 		t.Error(e)
 	}
 
 	assert.EqualValues(t, statusCode0, status)
-	/// TODO ///
 
-	// And Alduin is running in the cluster
-	// And Alduin is authenticated as a Kubernetes service account
-	// And the service account is authorised to get and patch deployments
+	// When there is a (new) container image of [the] server (in the repository)
 
-	var (
-		alduin *alduinInAPod
-	)
+	_, e = thereIsAContainerImageOfAServer(repository, statusCode1)
+	if e != nil {
+		t.Error(e)
+	}
+
+	// And Alduin is run as a Kubernetes Job (or CronJob, in the cluster)
 
 	alduin, e = alduinIsRunningInAPod(cluster, repository)
 	if e != nil {
@@ -151,30 +126,11 @@ func TestEndToEnd(t *testing.T) {
 
 	defer alduin.Destroy()
 
-	// When I rebuild the image so that it returns a different status code
-	// And I transfer to the new image the tag of the existing image
-	// And I push the new image to the repository
-
-	const (
-		statusCode1 = http.StatusTeapot
-	)
-
-	_, e = thereIsAContainerImageOfAServer(repository, statusCode1)
-	if e != nil {
-		t.Error(e)
-	}
-
-	// And I allow time for a rolling restart of the deployment to complete
-	// And I send a request to the endpoint
-	// Then I should see in the response to the request the new status code
-
-	const (
-		timeout1 = 3 * time.Minute
-	)
+	// Then the client should detect an expected change in the server's response
 
 	assert.Eventually(t,
 		func() bool {
-			status, e = client.GetStatusCodeFromEndpoint(endpoint, timeout0)
+			status, e = client.ObtainServerResponse()
 			if e != nil {
 				t.Error(e)
 			}
@@ -184,6 +140,46 @@ func TestEndToEnd(t *testing.T) {
 		timeout1,
 		timeout0,
 	)
+}
+
+type client struct {
+	client   *clients.HTTPClient
+	endpoint url.URL
+}
+
+func thereIsAClient() (c *client, e error) {
+	const (
+		scheme = "http"
+	)
+
+	var (
+		serverAddress net.TCPAddr
+	)
+
+	serverAddress.Port = serverPort
+
+	c = &client{
+		endpoint: url.URL{
+			Scheme: scheme,
+			Host:   serverAddress.String(),
+		},
+	}
+
+	c.client, e = clients.NewHTTPClient()
+	if e != nil {
+		return
+	}
+
+	return
+}
+
+func (c *client) ObtainServerResponse() (status int, e error) {
+	status, e = c.client.GetStatusCodeFromEndpoint(c.endpoint, timeout0)
+	if e != nil {
+		return
+	}
+
+	return
 }
 
 type containerImageRepository struct {
@@ -371,7 +367,8 @@ func thereIsAContainerImageOfAlduin(repository *containerImageRepository) (
 ) {
 	const (
 		commandArg0    = "-c"
-		commandArg1    = "CGO_ENABLED=0 GOOS=linux go build -o bin/alduin ../cmd/alduin"
+		commandArg1    = "CGO_ENABLED=0 GOOS=linux"
+		commandArg2    = "go build -o bin/alduin ../cmd/alduin"
 		commandName    = "bash"
 		dockerfilePath = "test/build/alduin/Dockerfile"
 	)
@@ -381,7 +378,7 @@ func thereIsAContainerImageOfAlduin(repository *containerImageRepository) (
 		image   *images.DockerImage
 	)
 
-	command = exec.Command(commandName, commandArg0, commandArg1)
+	command = exec.Command(commandName, commandArg0, commandArg1, commandArg2)
 
 	e = command.Run()
 	if e != nil {
@@ -527,7 +524,7 @@ func thereIsAKubernetesDeployment(
 }
 
 type alduinInAPod struct {
-	deployment *deployments.KubernetesDeployment
+	job        *jobs.KubernetesJob
 	permission *permissions.KubernetesRole
 }
 
@@ -589,24 +586,24 @@ func alduinIsRunningInAPod(
 		return
 	}
 
-	a.deployment, e = deployments.NewKubernetesDeployment(
+	a.job, e = jobs.NewKubernetesJob(
 		image.ImageName(),
 		cluster.KubeconfigPath(),
-		deployments.WithLabel(
+		jobs.WithLabel(
 			deploymentLabelKey,
 			image.ImageName(),
 		),
-		deployments.WithContainerWithTCPPorts(
+		jobs.WithContainerWithTCPPorts(
 			image.ImageName(),
 			image.ImageRefDocker(),
 		),
-		deployments.WithImagePullSecrets(
+		jobs.WithImagePullSecrets(
 			cluster.DockerRegistrySecretName(),
 		),
-		deployments.WithServiceAccount(
+		jobs.WithServiceAccount(
 			image.ImageName(),
 		),
-		deployments.WithHostPathVolume(
+		jobs.WithHostPathVolume(
 			volumeName,
 			cluster.NodeCACertsDir(),
 			cluster.NodeCACertsDir(),
@@ -621,7 +618,7 @@ func alduinIsRunningInAPod(
 }
 
 func (a *alduinInAPod) Destroy() (e error) {
-	e = a.deployment.Destroy()
+	e = a.job.Destroy()
 	if e != nil {
 		return
 	}
