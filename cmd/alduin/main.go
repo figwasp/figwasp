@@ -115,26 +115,24 @@ func main() {
 		retrievers[reference.RepositoryAddress()] = retriever
 	}
 
-	for { //TODO
-		for _, reference = range refList {
-			retriever = retrievers[reference.RepositoryAddress()]
+	for _, reference = range refList {
+		retriever = retrievers[reference.RepositoryAddress()]
 
-			digest, e = retriever.RetrieveImageDigest(
-				reference.NamedAndTagged(),
-				ctx,
-			)
+		digest, e = retriever.RetrieveImageDigest(
+			reference.NamedAndTagged(),
+			ctx,
+		)
+		if e != nil {
+			log.Fatalln(e)
+		}
+
+		if digest != reference.ImageDigest() {
+			e = restarter.RolloutRestart(deploymentName, ctx)
 			if e != nil {
 				log.Fatalln(e)
 			}
 
-			if digest != reference.ImageDigest() {
-				e = restarter.RolloutRestart(deploymentName, ctx)
-				if e != nil {
-					log.Fatalln(e)
-				}
-
-				return
-			}
+			return
 		}
 	}
 }
