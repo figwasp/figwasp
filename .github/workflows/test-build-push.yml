@@ -1,0 +1,43 @@
+name: Test, Build, Push
+on: [push]
+
+jobs:
+  test-build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Docker Login
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.17"
+
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Cache Go Modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Go Test
+        run: CGO_ENABLED=0 go test -v ./test
+
+      - name: Go Build
+        run: CGO_ENABLED=0 GOOS=linux go build ./cmd/figwasp
+
+      - name: Docker Build
+        run: docker build . -t ghcr.io/figwasp/figwasp:latest
+
+      - name: Docker Push
+        run: docker push ghcr.io/figwasp/figwasp:latest
