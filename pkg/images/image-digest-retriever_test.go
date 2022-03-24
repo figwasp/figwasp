@@ -10,9 +10,9 @@ import (
 	"github.com/opencontainers/go-digest"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/joel-ling/alduin/test/pkg/credentials"
-	"github.com/joel-ling/alduin/test/pkg/images"
-	"github.com/joel-ling/alduin/test/pkg/repositories"
+	"github.com/figwasp/figwasp/test/pkg/credentials"
+	"github.com/figwasp/figwasp/test/pkg/images"
+	"github.com/figwasp/figwasp/test/pkg/repositories"
 )
 
 func TestImageDigestRetrieverAgainstPublicRepository(t *testing.T) {

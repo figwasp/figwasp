@@ -9,8 +9,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/joel-ling/alduin/test/pkg/clusters"
-	"github.com/joel-ling/alduin/test/pkg/secrets"
+	"github.com/figwasp/figwasp/test/pkg/clusters"
+	"github.com/figwasp/figwasp/test/pkg/secrets"
 )
 
 func TestSecretLister(t *testing.T) {

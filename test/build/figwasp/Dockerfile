@@ -2,7 +2,7 @@ FROM alpine:latest
 
 WORKDIR /root
 
-ARG BINARY_NAME=alduin
+ARG BINARY_NAME=figwasp
 
 COPY test/bin/$BINARY_NAME .
 

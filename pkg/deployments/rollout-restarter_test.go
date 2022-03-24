@@ -16,12 +16,12 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/joel-ling/alduin/test/pkg/clients"
-	"github.com/joel-ling/alduin/test/pkg/clusters"
-	"github.com/joel-ling/alduin/test/pkg/credentials"
-	"github.com/joel-ling/alduin/test/pkg/deployments"
-	"github.com/joel-ling/alduin/test/pkg/images"
-	"github.com/joel-ling/alduin/test/pkg/repositories"
+	"github.com/figwasp/figwasp/test/pkg/clients"
+	"github.com/figwasp/figwasp/test/pkg/clusters"
+	"github.com/figwasp/figwasp/test/pkg/credentials"
+	"github.com/figwasp/figwasp/test/pkg/deployments"
+	"github.com/figwasp/figwasp/test/pkg/images"
+	"github.com/figwasp/figwasp/test/pkg/repositories"
 )
 
 func TestRolloutRestarter(t *testing.T) {

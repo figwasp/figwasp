@@ -12,15 +12,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/joel-ling/alduin/test/pkg/clients"
-	"github.com/joel-ling/alduin/test/pkg/clusters"
-	"github.com/joel-ling/alduin/test/pkg/credentials"
-	"github.com/joel-ling/alduin/test/pkg/deployments"
-	"github.com/joel-ling/alduin/test/pkg/images"
-	"github.com/joel-ling/alduin/test/pkg/jobs"
-	"github.com/joel-ling/alduin/test/pkg/permissions"
-	"github.com/joel-ling/alduin/test/pkg/repositories"
-	"github.com/joel-ling/alduin/test/pkg/secrets"
+	"github.com/figwasp/figwasp/test/pkg/clients"
+	"github.com/figwasp/figwasp/test/pkg/clusters"
+	"github.com/figwasp/figwasp/test/pkg/credentials"
+	"github.com/figwasp/figwasp/test/pkg/deployments"
+	"github.com/figwasp/figwasp/test/pkg/images"
+	"github.com/figwasp/figwasp/test/pkg/jobs"
+	"github.com/figwasp/figwasp/test/pkg/permissions"
+	"github.com/figwasp/figwasp/test/pkg/repositories"
+	"github.com/figwasp/figwasp/test/pkg/secrets"
 )
 
 // As a Kubernetes administrator deploying container applications to a cluster,
@@ -50,7 +50,7 @@ func TestEndToEnd(t *testing.T) {
 	)
 
 	var (
-		alduin     *alduinInAPod
+		figwasp    *figwaspInAPod
 		client     *client
 		cluster    *kubernetesCluster
 		deployment *deployments.KubernetesDeployment
@@ -117,16 +117,16 @@ func TestEndToEnd(t *testing.T) {
 		t.Error(e)
 	}
 
-	// And Alduin is run as a Kubernetes Job (or CronJob, in the cluster)
+	// And Figwasp is run as a Kubernetes Job (or CronJob, in the cluster)
 
-	alduin, e = alduinIsRunningInAPod(cluster, repository)
+	figwasp, e = figwaspIsRunningInAPod(cluster, repository)
 	if e != nil {
 		t.Error(e)
 	}
 
-	defer alduin.Destroy()
+	defer figwasp.Destroy()
 
-	// Then the client should detect an expected change in the server's response
+	// Then the client should detect a corresponding change in server response
 
 	assert.Eventually(t,
 		func() bool {
@@ -358,19 +358,22 @@ func (i *containerImageOfAServer) StatusCode() int {
 	return i.statusCode
 }
 
-type containerImageOfAlduin struct {
+type containerImageOfFigwasp struct {
 	containerImage
 }
 
-func thereIsAContainerImageOfAlduin(repository *containerImageRepository) (
-	i *containerImageOfAlduin, e error,
+func thereIsAContainerImageOfFigwasp(repository *containerImageRepository) (
+	i *containerImageOfFigwasp, e error,
 ) {
 	const (
-		commandArg0    = "-c"
-		commandArg1    = "CGO_ENABLED=0 GOOS=linux"
-		commandArg2    = "go build -o bin/alduin ../cmd/alduin"
-		commandName    = "bash"
-		dockerfilePath = "test/build/alduin/Dockerfile"
+		commandArg0    = "build"
+		commandArg1    = "-o"
+		commandArg2    = "bin/figwasp"
+		commandArg3    = "../cmd/figwasp"
+		commandEnv0    = "CGO_ENABLED=0"
+		commandEnv1    = "GOOS=linux"
+		commandName    = "go"
+		dockerfilePath = "test/build/figwasp/Dockerfile"
 	)
 
 	var (
@@ -378,14 +381,24 @@ func thereIsAContainerImageOfAlduin(repository *containerImageRepository) (
 		image   *images.DockerImage
 	)
 
-	command = exec.Command(commandName, commandArg0, commandArg1, commandArg2)
+	command = exec.Command(commandName,
+		commandArg0,
+		commandArg1,
+		commandArg2,
+		commandArg3,
+	)
+
+	command.Env = append(os.Environ(),
+		commandEnv0,
+		commandEnv1,
+	)
 
 	e = command.Run()
 	if e != nil {
 		return
 	}
 
-	i = &containerImageOfAlduin{
+	i = &containerImageOfFigwasp{
 		containerImage: containerImage{
 			imageRefDocker: fmt.Sprintf(imageRefFormat,
 				repository.AddressDocker(),
@@ -423,8 +436,8 @@ func thereIsAContainerImageOfAlduin(repository *containerImageRepository) (
 	return
 }
 
-func (i *containerImageOfAlduin) ImageName() string {
-	return "alduin"
+func (i *containerImageOfFigwasp) ImageName() string {
+	return "figwasp"
 }
 
 type kubernetesCluster struct {
@@ -523,15 +536,15 @@ func thereIsAKubernetesDeployment(
 	return
 }
 
-type alduinInAPod struct {
+type figwaspInAPod struct {
 	job        *jobs.KubernetesJob
 	permission *permissions.KubernetesRole
 }
 
-func alduinIsRunningInAPod(
+func figwaspIsRunningInAPod(
 	cluster *kubernetesCluster, repository *containerImageRepository,
 ) (
-	a *alduinInAPod, e error,
+	a *figwaspInAPod, e error,
 ) {
 	const (
 		apiGroup0 = ""
@@ -548,12 +561,12 @@ func alduinIsRunningInAPod(
 	)
 
 	var (
-		image *containerImageOfAlduin
+		image *containerImageOfFigwasp
 	)
 
-	a = &alduinInAPod{}
+	a = &figwaspInAPod{}
 
-	image, e = thereIsAContainerImageOfAlduin(repository)
+	image, e = thereIsAContainerImageOfFigwasp(repository)
 	if e != nil {
 		return
 	}
@@ -617,7 +630,7 @@ func alduinIsRunningInAPod(
 	return
 }
 
-func (a *alduinInAPod) Destroy() (e error) {
+func (a *figwaspInAPod) Destroy() (e error) {
 	e = a.job.Destroy()
 	if e != nil {
 		return

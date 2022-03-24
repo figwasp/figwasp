@@ -11,7 +11,7 @@ import (
 	_ "github.com/distribution/distribution/v3/registry/auth/htpasswd"
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/inmemory"
 
-	"github.com/joel-ling/alduin/test/pkg/hashes"
+	"github.com/figwasp/figwasp/test/pkg/hashes"
 )
 
 const (

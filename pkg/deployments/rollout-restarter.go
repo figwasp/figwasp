@@ -44,7 +44,7 @@ func (r *deploymentRolloutRestarter) RolloutRestart(
 	e error,
 ) {
 	const (
-		annotationKey = "alduin/restartedAt"
+		annotationKey = "figwasp/restartedAt"
 	)
 
 	var (

@@ -8,7 +8,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 
-	"github.com/joel-ling/alduin/test/pkg/containers/configs"
+	"github.com/figwasp/figwasp/test/pkg/containers/configs"
 )
 
 type DockerContainer struct {

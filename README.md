@@ -1,5 +1,5 @@
 ```gherkin
-Feature: Alduin
+Feature: Figwasp
 
     As a Kubernetes administrator deploying container applications to a cluster,
     I want a rolling restart of a deployment to be automatically triggered
@@ -8,15 +8,13 @@ Feature: Alduin
 
     Scenario:
         Given there is a container image repository
-        And in the repository there is an image of a server
+        And in the repository there is a container image of a server
         And there is a Kubernetes cluster
-        And the server is deployed to the cluster by means of a Deployment
-        And Alduin is running in the cluster with the relevant permissions
+        And in the cluster there is a Kubernetes Deployment of that server
+        And there is a client to the server obtaining its response to a request
 
-        When I rebuild the server image so that it behaves differently
-        And I push the new image to the repository with the same tag as the old
-        And I allow time for a rolling restart of the deployment to complete
-        And I send a request to the server and receive a response
+        When there is a new container image of the server in the repository
+        And Figwasp is run as a Kubernetes Job or CronJob in the cluster
 
-        Then I should observe in the response evidence of the new behaviour
+        Then the client should detect a corresponding change in server response
 ```

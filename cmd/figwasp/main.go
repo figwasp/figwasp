@@ -7,11 +7,11 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
 
-	"github.com/joel-ling/alduin/pkg/deployments"
-	"github.com/joel-ling/alduin/pkg/images"
-	"github.com/joel-ling/alduin/pkg/pods"
-	"github.com/joel-ling/alduin/pkg/repositories"
-	"github.com/joel-ling/alduin/pkg/secrets"
+	"github.com/figwasp/figwasp/pkg/deployments"
+	"github.com/figwasp/figwasp/pkg/images"
+	"github.com/figwasp/figwasp/pkg/pods"
+	"github.com/figwasp/figwasp/pkg/repositories"
+	"github.com/figwasp/figwasp/pkg/secrets"
 )
 
 func main() {

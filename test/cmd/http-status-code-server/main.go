@@ -5,7 +5,7 @@ import (
 	"log"
 	"net"
 
-	"github.com/joel-ling/alduin/test/pkg/servers"
+	"github.com/figwasp/figwasp/test/pkg/servers"
 )
 
 var (

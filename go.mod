@@ -1,4 +1,4 @@
-module github.com/joel-ling/alduin
+module github.com/figwasp/figwasp
 
 go 1.17
 
