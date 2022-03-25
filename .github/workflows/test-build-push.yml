@@ -1,5 +1,10 @@
 name: Test, Build, Push
-on: [push]
+on:
+  push:
+    paths-ignore:
+      - ".editorconfig"
+      - "LICENSE"
+      - "README.md"
 
 jobs:
   test-build-push:
