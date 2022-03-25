@@ -1,4 +1,4 @@
-package images
+package figwasp
 
 import (
 	"context"
@@ -11,10 +11,6 @@ import (
 	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/go-digest"
 )
-
-type ImageDigestRetriever interface {
-	RetrieveImageDigest(string, context.Context) (string, error)
-}
 
 type imageDigestRetriever struct {
 	systemContext *types.SystemContext
@@ -56,17 +52,17 @@ func (r *imageDigestRetriever) RetrieveImageDigest(
 		imageCloser    types.ImageCloser
 		imageDigest    digest.Digest
 		imageManifest  []byte
-		imageReference types.ImageReference
+		ImageReference types.ImageReference
 	)
 
-	imageReference, e = docker.ParseReference(
+	ImageReference, e = docker.ParseReference(
 		fmt.Sprintf(imageReferenceFormat, imageReferenceString),
 	)
 	if e != nil {
 		return
 	}
 
-	imageCloser, e = imageReference.NewImage(ctx, r.systemContext)
+	imageCloser, e = ImageReference.NewImage(ctx, r.systemContext)
 	if e != nil {
 		return
 	}

@@ -1,12 +1,8 @@
-package images
+package figwasp
 
 import (
 	"k8s.io/api/core/v1"
 )
-
-type ImageReferenceLister interface {
-	ListImageReferences() []ImageReference
-}
 
 type imageReferenceLister struct {
 	references map[string]ImageReference

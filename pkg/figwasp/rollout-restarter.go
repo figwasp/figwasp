@@ -1,4 +1,4 @@
-package deployments
+package figwasp
 
 import (
 	"context"
@@ -10,10 +10,6 @@ import (
 	typedAppsV1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	"k8s.io/client-go/rest"
 )
-
-type RolloutRestarter interface {
-	RolloutRestart(string, context.Context) error
-}
 
 type deploymentRolloutRestarter struct {
 	deployments typedAppsV1.DeploymentInterface

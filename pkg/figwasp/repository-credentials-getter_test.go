@@ -1,4 +1,4 @@
-package repositories
+package figwasp
 
 import (
 	"fmt"
@@ -32,7 +32,7 @@ func TestRepositoryCredentialsGetter(t *testing.T) {
 
 		secrets []v1.Secret
 
-		getter RepositoryCredentialsGetter
+		getter *repositoryCredentialsGetter
 
 		password string
 		username string

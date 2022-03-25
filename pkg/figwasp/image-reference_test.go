@@ -1,4 +1,4 @@
-package images
+package figwasp
 
 import (
 	"testing"
@@ -29,16 +29,16 @@ func TestImageReference(t *testing.T) {
 
 	assert.Equal(t,
 		repositoryAddress,
-		reference.RepositoryAddress(),
+		reference.RepositoryAddress,
 	)
 
 	assert.Equal(t,
 		namedAndTagged,
-		reference.NamedAndTagged(),
+		reference.NamedAndTagged,
 	)
 
 	assert.Equal(t,
 		imageDigest,
-		reference.ImageDigest(),
+		reference.ImageDigest,
 	)
 }

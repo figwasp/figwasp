@@ -1,4 +1,4 @@
-package images
+package figwasp
 
 import (
 	"testing"
@@ -24,7 +24,7 @@ func TestImageReferenceLister(t *testing.T) {
 	var (
 		pods []v1.Pod
 
-		lister ImageReferenceLister
+		lister *imageReferenceLister
 
 		e error
 	)
@@ -48,7 +48,7 @@ func TestImageReferenceLister(t *testing.T) {
 
 	assert.Equal(t,
 		repositoryAddress0,
-		lister.ListImageReferences()[0].RepositoryAddress(),
+		lister.ListImageReferences()[0].RepositoryAddress,
 	)
 
 	pods = append(pods,

@@ -1,4 +1,4 @@
-package pods
+package figwasp
 
 import (
 	"context"
@@ -11,10 +11,6 @@ import (
 	typedCoreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 )
-
-type PodLister interface {
-	ListPods(string, context.Context) ([]coreV1.Pod, error)
-}
 
 type deploymentPodLister struct {
 	deployments typedAppsV1.DeploymentInterface

@@ -1,4 +1,4 @@
-package secrets
+package figwasp
 
 import (
 	"context"
@@ -9,10 +9,6 @@ import (
 	typedCoreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 )
-
-type SecretLister interface {
-	ListSecrets(context.Context) ([]coreV1.Secret, error)
-}
 
 type secretLister struct {
 	secrets typedCoreV1.SecretInterface

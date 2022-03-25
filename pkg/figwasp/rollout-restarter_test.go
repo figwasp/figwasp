@@ -1,4 +1,4 @@
-package deployments
+package figwasp
 
 import (
 	"context"
@@ -18,7 +18,7 @@ import (
 
 	"github.com/figwasp/figwasp/test/pkg/clients"
 	"github.com/figwasp/figwasp/test/pkg/clusters"
-	"github.com/figwasp/figwasp/test/pkg/credentials"
+	creds "github.com/figwasp/figwasp/test/pkg/credentials"
 	"github.com/figwasp/figwasp/test/pkg/deployments"
 	"github.com/figwasp/figwasp/test/pkg/images"
 	"github.com/figwasp/figwasp/test/pkg/repositories"
@@ -33,20 +33,20 @@ func TestRolloutRestarter(t *testing.T) {
 		dockerHost = "172.17.0.1"
 		localhost  = "127.0.0.1"
 
-		repositoryPort = 5000
+		repositoryPort = 5002
 	)
 
 	var (
-		credential *credentials.TLSCertificate
+		credential *creds.TLSCertificate
 
 		repository        *repositories.DockerRegistry
 		repositoryAddress net.TCPAddr
 	)
 
-	credential, e = credentials.NewTLSCertificate(
-		credentials.WithExtendedKeyUsageForServerAuth(),
-		credentials.WithIPAddress(localhost),
-		credentials.WithIPAddress(dockerHost),
+	credential, e = creds.NewTLSCertificate(
+		creds.WithExtendedKeyUsageForServerAuth(),
+		creds.WithIPAddress(localhost),
+		creds.WithIPAddress(dockerHost),
 	)
 	if e != nil {
 		t.Error(e)
@@ -236,7 +236,7 @@ func TestRolloutRestarter(t *testing.T) {
 
 	var (
 		config    *rest.Config
-		restarter RolloutRestarter
+		restarter *deploymentRolloutRestarter
 	)
 
 	config, e = clientcmd.BuildConfigFromFlags(

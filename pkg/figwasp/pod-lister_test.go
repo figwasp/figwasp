@@ -1,4 +1,4 @@
-package pods
+package figwasp
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/figwasp/figwasp/test/pkg/clusters"
-	"github.com/figwasp/figwasp/test/pkg/credentials"
+	creds "github.com/figwasp/figwasp/test/pkg/credentials"
 	"github.com/figwasp/figwasp/test/pkg/deployments"
 	"github.com/figwasp/figwasp/test/pkg/images"
 	"github.com/figwasp/figwasp/test/pkg/repositories"
@@ -29,20 +29,20 @@ func TestPodLister(t *testing.T) {
 		dockerHost = "172.17.0.1"
 		localhost  = "127.0.0.1"
 
-		repositoryPort = 5000
+		repositoryPort = 5001
 	)
 
 	var (
-		credential *credentials.TLSCertificate
+		credential *creds.TLSCertificate
 
 		repository        *repositories.DockerRegistry
 		repositoryAddress net.TCPAddr
 	)
 
-	credential, e = credentials.NewTLSCertificate(
-		credentials.WithExtendedKeyUsageForServerAuth(),
-		credentials.WithIPAddress(localhost),
-		credentials.WithIPAddress(dockerHost),
+	credential, e = creds.NewTLSCertificate(
+		creds.WithExtendedKeyUsageForServerAuth(),
+		creds.WithIPAddress(localhost),
+		creds.WithIPAddress(dockerHost),
 	)
 	if e != nil {
 		t.Error(e)
@@ -176,7 +176,7 @@ func TestPodLister(t *testing.T) {
 
 	var (
 		config *rest.Config
-		lister PodLister
+		lister *deploymentPodLister
 		pods   []v1.Pod
 	)
 

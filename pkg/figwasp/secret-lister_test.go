@@ -1,4 +1,4 @@
-package secrets
+package figwasp
 
 import (
 	"context"
@@ -38,7 +38,7 @@ func TestSecretLister(t *testing.T) {
 		secret1 *secrets.KubernetesDockerRegistrySecret
 
 		config *rest.Config
-		lister SecretLister
+		lister *secretLister
 
 		list []v1.Secret
 

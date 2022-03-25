@@ -1,4 +1,4 @@
-package images
+package figwasp
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/figwasp/figwasp/test/pkg/credentials"
+	creds "github.com/figwasp/figwasp/test/pkg/credentials"
 	"github.com/figwasp/figwasp/test/pkg/images"
 	"github.com/figwasp/figwasp/test/pkg/repositories"
 )
@@ -96,7 +96,7 @@ func TestImageDigestRetrieverAgainstPrivateRepositoryWithBasicAuthAndTLS(
 	)
 
 	var (
-		credential *credentials.TLSCertificate
+		credential *creds.TLSCertificate
 
 		repository        *repositories.DockerRegistry
 		repositoryAddress net.TCPAddr
@@ -112,9 +112,9 @@ func TestImageDigestRetrieverAgainstPrivateRepositoryWithBasicAuthAndTLS(
 		e error
 	)
 
-	credential, e = credentials.NewTLSCertificate(
-		credentials.WithExtendedKeyUsageForServerAuth(),
-		credentials.WithIPAddress(repositoryHost),
+	credential, e = creds.NewTLSCertificate(
+		creds.WithExtendedKeyUsageForServerAuth(),
+		creds.WithIPAddress(repositoryHost),
 	)
 	if e != nil {
 		t.Error(e)

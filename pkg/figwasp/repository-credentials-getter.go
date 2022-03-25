@@ -1,4 +1,4 @@
-package repositories
+package figwasp
 
 import (
 	"encoding/json"
@@ -6,10 +6,6 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/kubectl/pkg/cmd/create"
 )
-
-type RepositoryCredentialsGetter interface {
-	GetRepositoryCredentials(string) (string, string)
-}
 
 type repositoryCredentialsGetter struct {
 	store map[string]credentials
