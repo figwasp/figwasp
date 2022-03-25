@@ -557,7 +557,8 @@ func figwaspIsRunningInAPod(
 		verb1     = "update"
 		verb2     = "list"
 
-		envVar = "FIGWASP_TARGET_DEPLOYMENT http-status-code-server"
+		envVarKey   = "FIGWASP_TARGET_DEPLOYMENT"
+		envVarValue = "http-status-code-server"
 
 		volumeName = "ca-certs"
 	)
@@ -608,10 +609,14 @@ func figwaspIsRunningInAPod(
 			deploymentLabelKey,
 			image.ImageName(),
 		),
-		jobs.WithContainerWithEnvVars(
+		jobs.WithContainer(
 			image.ImageName(),
 			image.ImageRefDocker(),
-			envVar,
+			jobs.WithEnvironmentVariable(envVarKey, envVarValue),
+			jobs.WithVolumeMount(
+				volumeName,
+				cluster.NodeCACertsDir(),
+			),
 		),
 		jobs.WithImagePullSecrets(
 			cluster.DockerRegistrySecretName(),
@@ -622,8 +627,6 @@ func figwaspIsRunningInAPod(
 		jobs.WithHostPathVolume(
 			volumeName,
 			cluster.NodeCACertsDir(),
-			cluster.NodeCACertsDir(),
-			image.ImageName(),
 		),
 	)
 	if e != nil {

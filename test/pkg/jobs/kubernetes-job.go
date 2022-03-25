@@ -2,7 +2,6 @@ package jobs
 
 import (
 	"context"
-	"fmt"
 
 	batchV1 "k8s.io/api/batch/v1"
 	coreV1 "k8s.io/api/core/v1"
@@ -132,7 +131,7 @@ func WithLabel(key, value string) (option kubernetesJobOption) {
 	return
 }
 
-func WithContainerWithEnvVars(name, imageRef string, envVars ...string) (
+func WithContainer(name, imageRef string, containerOptions ...containerOption) (
 	option kubernetesJobOption,
 ) {
 	const (
@@ -141,29 +140,16 @@ func WithContainerWithEnvVars(name, imageRef string, envVars ...string) (
 
 	var (
 		container coreV1.Container
-
-		i int
-
-		key   string
-		value string
+		i         int
 	)
 
 	container = coreV1.Container{
 		Name:  name,
 		Image: imageRef,
-		Env: make([]coreV1.EnvVar,
-			len(envVars),
-		),
 	}
 
-	for i = 0; i < len(envVars); i++ {
-		fmt.Sscanf(envVars[i], envVarFormat, &key, &value)
-		// XXX: error not handled, only for use in testing
-
-		container.Env[i] = coreV1.EnvVar{
-			Name:  key,
-			Value: value,
-		}
+	for i = 0; i < len(containerOptions); i++ {
+		containerOptions[i](&container)
 	}
 
 	option = func(j *KubernetesJob) (e error) {
@@ -216,19 +202,7 @@ func WithServiceAccount(name string) (option kubernetesJobOption) {
 	return
 }
 
-func WithHostPathVolume(name, hostPath, mountPath, containerName string,
-) (
-	option kubernetesJobOption,
-) {
-	const (
-		readOnly = true
-	)
-
-	var (
-		container *coreV1.Container
-		i         int
-	)
-
+func WithHostPathVolume(name, hostPath string) (option kubernetesJobOption) {
 	option = func(j *KubernetesJob) (e error) {
 		j.job.Spec.Template.Spec.Volumes = append(
 			j.job.Spec.Template.Spec.Volumes,
@@ -242,23 +216,42 @@ func WithHostPathVolume(name, hostPath, mountPath, containerName string,
 			},
 		)
 
-		for i = 0; i < len(j.job.Spec.Template.Spec.Containers); i++ {
-			container = &(j.job.Spec.Template.Spec.Containers[i])
+		return
+	}
 
-			if container.Name != containerName {
-				continue
-			}
+	return
+}
 
-			container.VolumeMounts = append(container.VolumeMounts,
-				coreV1.VolumeMount{
-					Name:      name,
-					ReadOnly:  readOnly,
-					MountPath: mountPath,
-				},
-			)
+type containerOption func(*coreV1.Container)
 
-			break
-		}
+func WithEnvironmentVariable(key, value string) (option containerOption) {
+	option = func(c *coreV1.Container) {
+		c.Env = append(c.Env,
+			coreV1.EnvVar{
+				Name:  key,
+				Value: value,
+			},
+		)
+
+		return
+	}
+
+	return
+}
+
+func WithVolumeMount(volumeName, mountPath string) (option containerOption) {
+	const (
+		readOnly = true
+	)
+
+	option = func(c *coreV1.Container) {
+		c.VolumeMounts = append(c.VolumeMounts,
+			coreV1.VolumeMount{
+				Name:      volumeName,
+				ReadOnly:  readOnly,
+				MountPath: mountPath,
+			},
+		)
 
 		return
 	}
