@@ -100,24 +100,115 @@ Yuval Simhon:
 > triggered > a new Docker image is pushed (withoud version changing) >
 > Deployment will update the pod > service will expose the new pod.
 
-## Behaviour-Driven Specifications
-```gherkin
-Feature: Figwasp
+## Usage
 
-    As a Kubernetes administrator deploying container applications to a cluster,
-    I want a rolling restart of a deployment to be automatically triggered
-    whenever the tag of a currently-deployed image is inherited by another image
-    so that the deployment is always up-to-date without manual intervention.
+### Example Deployment
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-deployment
+  labels:
+    app: my-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: my-app
+        image: my-repository/my-image:latest
+        ports:
+        - containerPort: 80
+      imagePullPolicy: Always
+      imagePullSecrets:
+      - name: my-repository
+```
 
-    Scenario:
-        Given there is a container image repository
-        And in the repository there is a container image of a server
-        And there is a Kubernetes cluster
-        And in the cluster there is a Kubernetes Deployment of that server
-        And there is a client to the server obtaining its response to a request
+For Figwasp to work, it is important to set `imagePullPolicy: Always`
+if the image tag is anything other than `:latest`.
+(See relevant Kubernetes [documentation](https://kubernetes.io/docs/concepts/containers/images/#imagepullpolicy-defaulting).)
 
-        When there is a new container image of the server in the repository
-        And Figwasp is run as a Kubernetes Job or CronJob in the cluster
+Figwasp makes use of `imagePullSecrets`
+when querying private container image repositories,
+eliminating the need for additional configuration and secret management.
 
-        Then the client should detect a corresponding change in server response
+### Run Figwasp as a CronJob
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: figwasp
+spec:
+  schedule: "* * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: figwasp
+          containers:
+          - name: figwasp
+            image: ghcr.io/figwasp/figwasp:latest
+            env:
+            - name: FIGWASP_TARGET_DEPLOYMENT
+              value: "my-deployment"
+          # - name: FIGWASP_TARGET_NAMESPACE
+          #   value: "default"
+          # - name: FIGWASP_API_CLIENT_TIMEOUT
+          #   value: "30s"
+          restartPolicy: Never
+```
+
+Figwasp must be run as a service account with the appropriate permissions
+to perform its functions.
+
+### Configure Permissions
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: figwasp
+```
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: figwasp
+rules:
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "update"]
+- apiGroups: ["apps"]
+  resources: ["replicasets"]
+  verbs: ["list"]
+- apiGroups: [""]
+  resources: ["pods", "secrets"]
+  verbs: ["list"]
+```
+
+Figwasp needs permissions to get Deployments and list ReplicaSets and Pods
+so that it can collate the image references and digests of deployed images.
+Permission to list secrets is required for Figwasp to obtain credentials
+necessary when querying private container image repositories for image digests.
+To initiate a rolling restart of a Deployment,
+Figwasp must be granted permission to update the Deployment.
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: figwasp
+subjects:
+- kind: ServiceAccount
+  name: figwasp
+roleRef:
+  kind: Role
+  name: figwasp
+  apiGroup: rbac.authorization.k8s.io
 ```
