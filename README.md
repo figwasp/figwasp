@@ -17,7 +17,9 @@ calling the Kubernetes API. The former is a manual bottleneck in an otherwise
 automated workflow, while the latter necessitates the delegation of cluster
 administrator privileges and credentials. Figwasp offers an elegant alternative
 to the existing "push" model and can easily be employed as a Kubernetes CronJob
-with minimal configuration.
+with minimal configuration. It works by comparing the digests of deployed
+images to those in image repositories and triggering a rolling update of the
+Deployment if it detects a difference.
 
 ## User Story
     As a Kubernetes administrator deploying container applications to a cluster,
