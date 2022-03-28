@@ -15,11 +15,12 @@ container image repositories for changes in tags. A restart had to be triggered
 by an administrator using the command-line interface, or by build automation
 calling the Kubernetes API. The former is a manual bottleneck in an otherwise
 automated workflow, while the latter necessitates the delegation of cluster
-administrator privileges and credentials. Figwasp offers an elegant alternative
-to the existing "push" model and can easily be employed as a Kubernetes CronJob
-with minimal configuration. It works by comparing the digests of deployed
-images to those in image repositories and triggering a rolling update of the
-Deployment if it detects a difference.
+administrator privileges and credentials.
+
+Figwasp offers an elegant alternative to the existing "push" model and can
+easily be employed as a Kubernetes CronJob with minimal configuration. It works
+by comparing the digests of deployed images to those in image repositories and
+triggering a rolling update of the Deployment if it detects a difference.
 
 \* or more commonly a mutable `:<major>.<minor>` tag
 following the [SemVer](https://semver.org/) convention e.g. `:1.2`
