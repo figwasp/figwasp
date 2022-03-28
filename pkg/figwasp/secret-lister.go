@@ -3,6 +3,7 @@ package figwasp
 import (
 	"context"
 
+	"github.com/juju/errors"
 	coreV1 "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -23,6 +24,8 @@ func NewSecretLister(config *rest.Config, namespace string) (
 
 	clientset, e = kubernetes.NewForConfig(config)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
@@ -44,6 +47,8 @@ func (l *secretLister) ListSecrets(ctx context.Context) (
 		metaV1.ListOptions{},
 	)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 

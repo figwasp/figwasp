@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/juju/errors"
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
 
@@ -37,6 +38,8 @@ func NewFigwasp(
 
 	refLister, e = newRefLister(config, namespace, deployment, timeout)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
@@ -50,18 +53,24 @@ func NewFigwasp(
 
 	f.credsGetter, e = newCredsGetter(config, namespace, timeout)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
 	for _, reference = range f.references {
 		e = f.addRetriever(reference.RepositoryAddress)
 		if e != nil {
+			e = errors.Trace(e)
+
 			return
 		}
 	}
 
 	f.restarter, e = figwasp.NewDeploymentRolloutRestarter(config, namespace)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
@@ -130,6 +139,8 @@ func (f *Figwasp) addRetriever(repositoryAddress string) (e error) {
 		),
 	)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
@@ -155,7 +166,7 @@ func (f *Figwasp) retrieveAndCompareImageDigest(
 		ctx,
 	)
 	if e != nil {
-		failure <- e
+		failure <- errors.Trace(e)
 
 		return
 	}
@@ -180,6 +191,8 @@ func (f *Figwasp) rolloutRestart() (e error) {
 
 	e = f.restarter.RolloutRestart(f.deployment, ctx)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
@@ -199,6 +212,8 @@ func newRefLister(
 
 	podLister, e = figwasp.NewDeploymentPodLister(config, namespace)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
@@ -206,11 +221,15 @@ func newRefLister(
 
 	podList, e = podLister.ListPods(deployment, ctx)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
 	refLister, e = figwasp.NewImageReferenceListerFromPods(podList)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
@@ -230,6 +249,8 @@ func newCredsGetter(
 
 	secretLister, e = figwasp.NewSecretLister(config, namespace)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
@@ -237,12 +258,16 @@ func newCredsGetter(
 
 	secretList, e = secretLister.ListSecrets(ctx)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
 	credsGetter, e =
 		figwasp.NewRepositoryCredentialsGetterFromKubernetesSecrets(secretList)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 

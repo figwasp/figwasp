@@ -3,6 +3,7 @@ package figwasp
 import (
 	"context"
 
+	"github.com/juju/errors"
 	appsV1 "k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,6 +28,8 @@ func NewDeploymentPodLister(config *rest.Config, namespace string) (
 
 	clientset, e = kubernetes.NewForConfig(config)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
@@ -58,6 +61,8 @@ func (l *deploymentPodLister) ListPods(
 		metaV1.GetOptions{},
 	)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
@@ -65,6 +70,8 @@ func (l *deploymentPodLister) ListPods(
 		metaV1.ListOptions{},
 	)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
@@ -84,6 +91,8 @@ func (l *deploymentPodLister) ListPods(
 		metaV1.ListOptions{},
 	)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 

@@ -1,6 +1,7 @@
 package figwasp
 
 import (
+	"github.com/juju/errors"
 	"k8s.io/api/core/v1"
 )
 
@@ -33,6 +34,8 @@ func NewImageReferenceListerFromPods(pods []v1.Pod) (
 			l.references[containerStatus.ImageID], e =
 				NewImageReferenceFromCanonicalString(containerStatus.ImageID)
 			if e != nil {
+				e = errors.Trace(e)
+
 				return
 			}
 		}

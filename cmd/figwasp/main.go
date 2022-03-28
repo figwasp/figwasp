@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/caarlos0/env/v6"
+	"github.com/juju/errors"
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
 )
@@ -29,6 +30,14 @@ func main() {
 		e error
 	)
 
+	defer func() {
+		if e != nil {
+			log.Fatalln(
+				errors.ErrorStack(e),
+			)
+		}
+	}()
+
 	envVars = environmentVariables{
 		Namespace: v1.NamespaceDefault,
 		Timeout:   timeoutDefault,
@@ -36,12 +45,16 @@ func main() {
 
 	e = env.Parse(&envVars)
 	if e != nil {
-		log.Fatalln(e)
+		e = errors.Trace(e)
+
+		return
 	}
 
 	config, e = rest.InClusterConfig()
 	if e != nil {
-		log.Fatalln(e)
+		e = errors.Trace(e)
+
+		return
 	}
 
 	figwasp, e = NewFigwasp(config,
@@ -50,11 +63,15 @@ func main() {
 		envVars.Timeout,
 	)
 	if e != nil {
-		log.Fatalln(e)
+		e = errors.Trace(e)
+
+		return
 	}
 
 	e = figwasp.Run()
 	if e != nil {
-		log.Fatalln(e)
+		e = errors.Trace(e)
+
+		return
 	}
 }

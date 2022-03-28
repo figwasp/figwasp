@@ -3,6 +3,7 @@ package figwasp
 import (
 	"encoding/json"
 
+	"github.com/juju/errors"
 	"k8s.io/api/core/v1"
 	"k8s.io/kubectl/pkg/cmd/create"
 )
@@ -36,6 +37,8 @@ func NewRepositoryCredentialsGetterFromKubernetesSecrets(secrets []v1.Secret) (
 			&dockerConfig,
 		)
 		if e != nil {
+			e = errors.Trace(e)
+
 			return
 		}
 

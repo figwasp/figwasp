@@ -9,6 +9,7 @@ import (
 	"github.com/containers/image/v5/docker"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/types"
+	"github.com/juju/errors"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -32,6 +33,8 @@ func NewImageDigestRetriever(options ...imageDigestRetrieverOption) (
 	for _, option = range options {
 		e = option(r)
 		if e != nil {
+			e = errors.Trace(e)
+
 			return
 		}
 	}
@@ -59,21 +62,29 @@ func (r *imageDigestRetriever) RetrieveImageDigest(
 		fmt.Sprintf(imageReferenceFormat, imageReferenceString),
 	)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
 	imageCloser, e = ImageReference.NewImage(ctx, r.systemContext)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
 	imageManifest, _, e = imageCloser.Manifest(ctx)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
 	imageDigest, e = manifest.Digest(imageManifest)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
@@ -90,6 +101,8 @@ func (r *imageDigestRetriever) Destroy() (e error) {
 	for _, path = range r.pathsToRemove {
 		e = os.RemoveAll(path)
 		if e != nil {
+			e = errors.Trace(e)
+
 			return
 		}
 	}
@@ -138,6 +151,8 @@ func WithSelfSignedTLSCertificate(pathToCACert string) (
 			pathToCACertDirPattern,
 		)
 		if e != nil {
+			e = errors.Trace(e)
+
 			return
 		}
 
@@ -145,6 +160,8 @@ func WithSelfSignedTLSCertificate(pathToCACert string) (
 
 		e = os.Link(pathToCACert, pathToCACertLink)
 		if e != nil {
+			e = errors.Trace(e)
+
 			return
 		}
 

@@ -2,6 +2,7 @@ package figwasp
 
 import (
 	"github.com/containers/image/v5/docker/reference"
+	"github.com/juju/errors"
 )
 
 type ImageReference struct {
@@ -27,6 +28,8 @@ func NewImageReferenceFromCanonicalString(s string) (
 
 	named, e = reference.ParseNamed(s)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
@@ -44,6 +47,8 @@ func NewImageReferenceFromCanonicalString(s string) (
 		tag,                        // recover tag
 	)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 

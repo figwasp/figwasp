@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/juju/errors"
 	appsV1 "k8s.io/api/apps/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -24,6 +25,8 @@ func NewDeploymentRolloutRestarter(config *rest.Config, namespace string) (
 
 	clientset, e = kubernetes.NewForConfig(config)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
@@ -52,6 +55,8 @@ func (r *deploymentRolloutRestarter) RolloutRestart(
 		metaV1.GetOptions{},
 	)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 
@@ -68,6 +73,8 @@ func (r *deploymentRolloutRestarter) RolloutRestart(
 		metaV1.UpdateOptions{},
 	)
 	if e != nil {
+		e = errors.Trace(e)
+
 		return
 	}
 

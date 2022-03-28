@@ -7,6 +7,7 @@ require (
 	github.com/containers/image/v5 v5.19.1
 	github.com/distribution/distribution/v3 v3.0.0-20220208183205-a4d9db5a884b
 	github.com/docker/docker v20.10.12+incompatible
+	github.com/juju/errors v0.0.0-20220324005906-d8c5072c94ab
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3
