@@ -1,4 +1,4 @@
-# Keep Kubernetes Deployments up-to-date with the `:latest`* container images
+# Keep Kubernetes Deployments up-to-date with the `:latest`\* container images
 Practising continuous integration in a highly-automated environment means that
 new versions of multiple build artifacts are generated with every incremental
 change to the codebase. In the context of cloud-native microservices, these
@@ -20,6 +20,9 @@ to the existing "push" model and can easily be employed as a Kubernetes CronJob
 with minimal configuration. It works by comparing the digests of deployed
 images to those in image repositories and triggering a rolling update of the
 Deployment if it detects a difference.
+
+\* or more commonly a mutable `:<major>.<minor>` tag
+following the [SemVer](https://semver.org/) convention e.g. `:1.2`
 
 ## User Story
     As a Kubernetes administrator deploying container applications to a cluster,
@@ -137,7 +140,7 @@ if the image tag is anything other than `:latest`.
 (See relevant Kubernetes [documentation](https://kubernetes.io/docs/concepts/containers/images/#imagepullpolicy-defaulting).)
 
 Figwasp makes use of `imagePullSecrets`
-when querying private container image repositories,
+when querying [private container image repositories](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/),
 eliminating the need for additional configuration and secret management.
 
 ### Run Figwasp as a CronJob
