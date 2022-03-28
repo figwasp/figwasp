@@ -11,7 +11,10 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      IMAGE_REFERENCE: ghcr.io/figwasp/figwasp:v1.0.0
+      IMAGE_NAME: ghcr.io/figwasp/figwasp
+      SEMVER_MAJOR: "1"
+      SEMVER_MINOR: "1.0"
+      SEMVER_PATCH: "1.0.0"
 
     steps:
       - name: Docker Login
@@ -46,7 +49,13 @@ jobs:
         run: CGO_ENABLED=0 GOOS=linux go build ./cmd/figwasp
 
       - name: Docker Build
-        run: docker build . -t $IMAGE_REFERENCE
+        run: |
+          docker build \
+            -t $IMAGE_NAME:latest \
+            -t $IMAGE_NAME:$SEMVER_MAJOR \
+            -t $IMAGE_NAME:$SEMVER_MINOR \
+            -t $IMAGE_NAME:$SEMVER_PATCH \
+            .
 
       - name: Docker Push
-        run: docker push $IMAGE_REFERENCE
+        run: docker push --all-tags $IMAGE_NAME
