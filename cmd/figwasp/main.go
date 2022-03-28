@@ -13,7 +13,7 @@ import (
 type environmentVariables struct {
 	Namespace  string        `env:"FIGWASP_TARGET_NAMESPACE"`
 	Deployment string        `env:"FIGWASP_TARGET_DEPLOYMENT,notEmpty"`
-	Timeout    time.Duration `env:"FIGWASP_API_CLIENT_TIMEOUT"`
+	Timeout    time.Duration `env:"FIGWASP_CLIENT_TIMEOUT"`
 }
 
 func main() {

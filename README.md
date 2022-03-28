@@ -164,7 +164,7 @@ spec:
               value: "my-deployment"
           # - name: FIGWASP_TARGET_NAMESPACE
           #   value: "default"
-          # - name: FIGWASP_API_CLIENT_TIMEOUT
+          # - name: FIGWASP_CLIENT_TIMEOUT
           #   value: "30s"
           restartPolicy: Never
 ```
