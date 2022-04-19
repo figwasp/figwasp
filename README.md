@@ -151,7 +151,8 @@ kind: CronJob
 metadata:
   name: figwasp
 spec:
-  schedule: "* * * * *"
+  schedule: "*/5 9-18 * * 1-5" # https://crontab.guru/#*/5_9-18_*_*_1-5
+  concurrencyPolicy: Forbid
   jobTemplate:
     spec:
       template:
