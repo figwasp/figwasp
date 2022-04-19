@@ -145,6 +145,8 @@ when querying [private container image repositories](https://kubernetes.io/docs/
 eliminating the need for additional configuration and secret management.
 
 ### Run Figwasp as a CronJob
+Users should edit the merely illustrative `spec.schedule` to suit their needs.
+
 ```yaml
 apiVersion: batch/v1
 kind: CronJob
