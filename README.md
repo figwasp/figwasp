@@ -188,6 +188,7 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  namespace: default # must match value of env. var. `FIGWASP_TARGET_NAMESPACE`
   name: figwasp
 rules:
 - apiGroups: ["apps"]
@@ -212,6 +213,7 @@ Figwasp must be granted permission to update the Deployment.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  namespace: default # must match value of env. var. `FIGWASP_TARGET_NAMESPACE`
   name: figwasp
 subjects:
 - kind: ServiceAccount
