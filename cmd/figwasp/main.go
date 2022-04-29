@@ -11,9 +11,8 @@ import (
 )
 
 type environmentVariables struct {
-	Namespace  string        `env:"FIGWASP_TARGET_NAMESPACE"`
-	Deployment string        `env:"FIGWASP_TARGET_DEPLOYMENT,notEmpty"`
-	Timeout    time.Duration `env:"FIGWASP_CLIENT_TIMEOUT"`
+	Namespace string        `env:"FIGWASP_TARGET_NAMESPACE"`
+	Timeout   time.Duration `env:"FIGWASP_CLIENT_TIMEOUT"`
 }
 
 func main() {
@@ -25,7 +24,7 @@ func main() {
 		config  *rest.Config
 		envVars environmentVariables
 
-		figwasp *Figwasp
+		swarm *FigwaspSwarm
 
 		e error
 	)
@@ -57,9 +56,8 @@ func main() {
 		return
 	}
 
-	figwasp, e = NewFigwasp(config,
+	swarm, e = NewFigwaspSwarm(config,
 		envVars.Namespace,
-		envVars.Deployment,
 		envVars.Timeout,
 	)
 	if e != nil {
@@ -68,7 +66,7 @@ func main() {
 		return
 	}
 
-	e = figwasp.Run()
+	e = swarm.Run()
 	if e != nil {
 		e = errors.Trace(e)
 

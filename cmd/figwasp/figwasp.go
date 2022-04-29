@@ -12,10 +12,6 @@ import (
 	"github.com/figwasp/figwasp/pkg/figwasp"
 )
 
-var (
-	background context.Context = context.Background()
-)
-
 type Figwasp struct {
 	credsGetter RepositoryCredentialsGetter
 	references  []figwasp.ImageReference
@@ -28,6 +24,8 @@ type Figwasp struct {
 
 func NewFigwasp(
 	config *rest.Config, namespace, deployment string, timeout time.Duration,
+	credsGetter RepositoryCredentialsGetter, restarter RolloutRestarter,
+	retrievers map[string]ImageDigestRetriever,
 ) (
 	f *Figwasp, e error,
 ) {
@@ -44,18 +42,13 @@ func NewFigwasp(
 	}
 
 	f = &Figwasp{
-		references: refLister.ListImageReferences(),
-		retrievers: make(map[string]ImageDigestRetriever),
+		credsGetter: credsGetter,
+		references:  refLister.ListImageReferences(),
+		restarter:   restarter,
+		retrievers:  retrievers,
 
 		deployment: deployment,
 		timeout:    timeout,
-	}
-
-	f.credsGetter, e = newCredsGetter(config, namespace, timeout)
-	if e != nil {
-		e = errors.Trace(e)
-
-		return
 	}
 
 	for _, reference = range f.references {
@@ -67,12 +60,15 @@ func NewFigwasp(
 		}
 	}
 
-	f.restarter, e = figwasp.NewDeploymentRolloutRestarter(config, namespace)
-	if e != nil {
-		e = errors.Trace(e)
+	return
+}
 
-		return
-	}
+func (f *Figwasp) RunConcurrently(
+	errorChannel chan<- error, waitGroup *sync.WaitGroup,
+) {
+	errorChannel <- f.Run()
+
+	waitGroup.Done()
 
 	return
 }
@@ -227,44 +223,6 @@ func newRefLister(
 	}
 
 	refLister, e = figwasp.NewImageReferenceListerFromPods(podList)
-	if e != nil {
-		e = errors.Trace(e)
-
-		return
-	}
-
-	return
-}
-
-func newCredsGetter(
-	config *rest.Config, namespace string, timeout time.Duration,
-) (
-	credsGetter RepositoryCredentialsGetter, e error,
-) {
-	var (
-		ctx          context.Context
-		secretList   []v1.Secret
-		secretLister SecretLister
-	)
-
-	secretLister, e = figwasp.NewSecretLister(config, namespace)
-	if e != nil {
-		e = errors.Trace(e)
-
-		return
-	}
-
-	ctx, _ = context.WithTimeout(background, timeout)
-
-	secretList, e = secretLister.ListSecrets(ctx)
-	if e != nil {
-		e = errors.Trace(e)
-
-		return
-	}
-
-	credsGetter, e =
-		figwasp.NewRepositoryCredentialsGetterFromKubernetesSecrets(secretList)
 	if e != nil {
 		e = errors.Trace(e)
 
