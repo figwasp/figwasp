@@ -116,6 +116,7 @@ metadata:
   name: my-deployment
   labels:
     app: my-app
+    figwasp/target: "true" # Figwasp ignores Deployments without this label
 spec:
   replicas: 3
   selector:
@@ -135,6 +136,9 @@ spec:
       imagePullSecrets:
       - name: my-repository
 ```
+
+The value of the label `figwasp/target: "true"` must be quoted,
+because Kubernetes allows only strings for label keys and values.
 
 For Figwasp to work, it is important to set `imagePullPolicy: Always`
 if the image tag is anything other than `:latest`.
@@ -163,9 +167,7 @@ spec:
           containers:
           - name: figwasp
             image: ghcr.io/figwasp/figwasp:latest
-            env:
-            - name: FIGWASP_TARGET_DEPLOYMENT
-              value: "my-deployment"
+          # env:
           # - name: FIGWASP_TARGET_NAMESPACE
           #   value: "default"
           # - name: FIGWASP_CLIENT_TIMEOUT
@@ -193,7 +195,7 @@ metadata:
 rules:
 - apiGroups: ["apps"]
   resources: ["deployments"]
-  verbs: ["get", "update"]
+  verbs: ["list", "get", "update"]
 - apiGroups: ["apps"]
   resources: ["replicasets"]
   verbs: ["list"]
@@ -202,7 +204,7 @@ rules:
   verbs: ["list"]
 ```
 
-Figwasp needs permissions to get Deployments and list ReplicaSets and Pods
+Figwasp needs permissions to list (and get) Deployments, ReplicaSets and Pods
 so that it can collate the image references and digests of deployed images.
 Permission to list secrets is required for Figwasp to obtain credentials
 necessary when querying private container image repositories for image digests.
