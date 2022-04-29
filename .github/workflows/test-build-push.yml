@@ -12,9 +12,9 @@ jobs:
 
     env:
       IMAGE_NAME: ghcr.io/figwasp/figwasp
-      SEMVER_MAJOR: "1"
-      SEMVER_MINOR: "1.0"
-      SEMVER_PATCH: "1.0.0"
+      SEMVER_MAJOR: "2"
+      SEMVER_MINOR: "2.0"
+      SEMVER_PATCH: "2.0.0"
 
     steps:
       - name: Docker Login
