@@ -8,6 +8,10 @@ import (
 	"github.com/figwasp/figwasp/pkg/figwasp"
 )
 
+type DeploymentNameLister interface {
+	ListDeploymentNames(context.Context) ([]string, error)
+}
+
 type ImageDigestRetriever interface {
 	RetrieveImageDigest(string, context.Context) (string, error)
 }
