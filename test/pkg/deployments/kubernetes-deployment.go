@@ -53,7 +53,8 @@ func NewKubernetesDeployment(
 
 		deployment: &appsV1.Deployment{
 			ObjectMeta: metaV1.ObjectMeta{
-				Name: name,
+				Name:   name,
+				Labels: make(map[string]string),
 			},
 			Spec: appsV1.DeploymentSpec{
 				Selector: &metaV1.LabelSelector{
@@ -171,6 +172,8 @@ func WithReplicas(number int32) (option kubernetesDeploymentOption) {
 
 func WithLabel(key, value string) (option kubernetesDeploymentOption) {
 	option = func(d *KubernetesDeployment) (e error) {
+		d.deployment.ObjectMeta.Labels[key] = value
+
 		d.deployment.Spec.Selector.MatchLabels[key] = value
 
 		d.deployment.Spec.Template.ObjectMeta.Labels[key] = value
