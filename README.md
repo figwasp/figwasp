@@ -166,7 +166,7 @@ spec:
           serviceAccountName: figwasp
           containers:
           - name: figwasp
-            image: ghcr.io/figwasp/figwasp:latest
+            image: ghcr.io/figwasp/figwasp:2
           # env:
           # - name: FIGWASP_TARGET_NAMESPACE
           #   value: "default"
