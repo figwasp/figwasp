@@ -37,7 +37,9 @@ const (
 
 	serverPort = 30000
 
-	deploymentLabelKey = "app"
+	deploymentLabelAppKey       = "app"
+	deploymentLabelFigwaspKey   = "figwasp/target"
+	deploymentLabelFigwaspValue = "true"
 
 	timeout0 = time.Second
 	timeout1 = time.Minute
@@ -517,8 +519,12 @@ func thereIsAKubernetesDeployment(
 		image.ImageName(),
 		cluster.KubeconfigPath(),
 		deployments.WithLabel(
-			deploymentLabelKey,
+			deploymentLabelAppKey,
 			image.ImageName(),
+		),
+		deployments.WithLabel(
+			deploymentLabelFigwaspKey,
+			deploymentLabelFigwaspValue,
 		),
 		deployments.WithContainerWithTCPPorts(
 			image.ImageName(),
@@ -557,9 +563,6 @@ func figwaspIsRunningInAPod(
 		verb1     = "update"
 		verb2     = "list"
 
-		envVarKey   = "FIGWASP_TARGET_DEPLOYMENT"
-		envVarValue = "http-status-code-server"
-
 		volumeName = "ca-certs"
 	)
 
@@ -578,7 +581,7 @@ func figwaspIsRunningInAPod(
 		image.ImageName(),
 		cluster.KubeconfigPath(),
 		permissions.WithPolicyRule(
-			[]string{verb0, verb1},
+			[]string{verb0, verb1, verb2},
 			[]string{apiGroup1},
 			[]string{resource0},
 		),
@@ -606,13 +609,12 @@ func figwaspIsRunningInAPod(
 		image.ImageName(),
 		cluster.KubeconfigPath(),
 		jobs.WithLabel(
-			deploymentLabelKey,
+			deploymentLabelAppKey,
 			image.ImageName(),
 		),
 		jobs.WithContainer(
 			image.ImageName(),
 			image.ImageRefDocker(),
-			jobs.WithEnvironmentVariable(envVarKey, envVarValue),
 			jobs.WithVolumeMount(
 				volumeName,
 				cluster.NodeCACertsDir(),
